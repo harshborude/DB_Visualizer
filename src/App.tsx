@@ -92,6 +92,18 @@ function TableNode({ data }: { data: { table: TableData, isHovered?: boolean, is
   )
 }
 
+type ActiveTab = 'overview' | 'columns' | 'keys' | 'relationships' | 'health' | 'impact' | 'docs';
+
+const TABS: { id: ActiveTab, label: string }[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'columns', label: 'Columns' },
+  { id: 'keys', label: 'Keys' },
+  { id: 'relationships', label: 'Relationships' },
+  { id: 'health', label: 'Health' },
+  { id: 'impact', label: 'Impact' },
+  { id: 'docs', label: 'Documentation' }
+];
+
 function App() {
   const [tables, setTables] = useState<AnalyzedTableData[]>([])
   const [nodes, setNodes] = useNodesState<Node[]>([])
@@ -101,6 +113,7 @@ function App() {
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null)
   
   const [selectedTable, setSelectedTable] = useState<AnalyzedTableData | null>(null)
+  const [activeTab, setActiveTab] = useState<ActiveTab>('overview')
   
   const [error, setError] = useState<string | null>(null)
   const [isParsing, setIsParsing] = useState(false)
@@ -200,6 +213,7 @@ function App() {
 
   const onNodeClick = (_: React.MouseEvent, node: Node) => {
     setSelectedTable(node.data.table);
+    setActiveTab('overview');
   }
 
   // Derive styled nodes and edges based on hover state
@@ -430,8 +444,35 @@ function App() {
                 </button>
               </div>
 
-              {/* GRAPH ANALYTICS SECTION */}
-              <div style={{ marginBottom: '2rem', backgroundColor: '#1e293b', padding: '1.25rem', borderRadius: '12px', border: '1px solid #334155' }}>
+              {/* TAB NAVIGATION */}
+              <div style={{ display: 'flex', gap: '1.5rem', overflowX: 'auto', marginBottom: '2rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>
+                {TABS.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: activeTab === tab.id ? '#38bdf8' : '#94a3b8',
+                      fontWeight: activeTab === tab.id ? 600 : 500,
+                      cursor: 'pointer',
+                      padding: '0.5rem 0',
+                      whiteSpace: 'nowrap',
+                      borderBottom: activeTab === tab.id ? '2px solid #38bdf8' : '2px solid transparent',
+                      transition: 'all 0.2s ease',
+                      fontSize: '0.95rem'
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* TAB CONTENT */}
+              {activeTab === 'overview' && (
+                <>
+                  {/* GRAPH ANALYTICS SECTION */}
+                  <div style={{ marginBottom: '2rem', backgroundColor: '#1e293b', padding: '1.25rem', borderRadius: '12px', border: '1px solid #334155' }}>
                 <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.8rem', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 15h18v-2H3v2z"></path><path d="M3 19h18v-2H3v2z"></path></svg>
                   Graph Inferences
@@ -500,6 +541,17 @@ function App() {
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+                </>
+              )}
+
+              {activeTab !== 'overview' && (
+                <div style={{ padding: '3rem 2rem', textAlign: 'center', color: '#94a3b8', backgroundColor: '#1e293b', borderRadius: '12px', border: '1px dashed #475569' }}>
+                  <h3 style={{ color: '#f8fafc', marginBottom: '1rem', fontSize: '1.25rem' }}>{TABS.find(t => t.id === activeTab)?.label} Panel</h3>
+                  <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.5 }}>
+                    This section will display advanced {TABS.find(t => t.id === activeTab)?.label.toLowerCase()} intelligence and metrics for <strong>{selectedTable.name}</strong>.
+                  </p>
                 </div>
               )}
             </div>
