@@ -1,4 +1,3 @@
-import React from 'react';
 import type { AnalyzedTableData } from '../../utils/graphAnalytics';
 import { type ActiveTab, TABS } from '../../types/ui';
 import { OverviewTab } from './tabs/OverviewTab';
@@ -30,9 +29,9 @@ export function DetailsPanelShell({ selectedTable, activeTab, onTabChange, onClo
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#f8fafc', fontWeight: 600 }}>{selectedTable.name}</h2>
-        <button 
+        <button
           onClick={onClose}
-          style={{ 
+          style={{
             background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.5rem',
             borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease'
           }}

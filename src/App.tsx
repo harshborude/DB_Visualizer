@@ -12,7 +12,13 @@ import { DetailsPanelShell } from './components/panel/DetailsPanelShell'
 import type { ActiveTab } from './types/ui'
 
 function App() {
-  const [tables, setTables] = useState<AnalyzedTableData[]>([])
+  const [tables, setTables] = useState<AnalyzedTableData[]>(() => {
+    try {
+      const saved = localStorage.getItem('erd-tables');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  })
+  
   const [nodes, setNodes] = useNodesState<Node[]>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([])
   
@@ -27,6 +33,24 @@ function App() {
 
   const nodeTypes = useMemo(() => ({ table: TableNode }), []);
 
+  // Save tables and nodes to localStorage
+  useEffect(() => {
+    if (tables.length > 0) {
+      localStorage.setItem('erd-tables', JSON.stringify(tables));
+    } else {
+      localStorage.removeItem('erd-tables');
+      localStorage.removeItem('erd-positions');
+    }
+  }, [tables]);
+
+  useEffect(() => {
+    if (nodes.length > 0) {
+      const positions: Record<string, {x: number, y: number}> = {};
+      nodes.forEach(n => { positions[n.id] = n.position; });
+      localStorage.setItem('erd-positions', JSON.stringify(positions));
+    }
+  }, [nodes]);
+
   useEffect(() => {
     if (tables.length === 0) {
       setNodes([]);
@@ -34,10 +58,16 @@ function App() {
       return;
     }
 
+    const savedPositionsStr = localStorage.getItem('erd-positions');
+    let savedPositions: Record<string, {x: number, y: number}> | null = null;
+    try {
+      if (savedPositionsStr) savedPositions = JSON.parse(savedPositionsStr);
+    } catch {}
+
     const newNodes: Node[] = tables.map((table, i) => ({
       id: table.name,
       type: 'table',
-      position: { x: (i % 5) * 400, y: Math.floor(i / 5) * 550 },
+      position: savedPositions?.[table.name] || { x: (i % 5) * 400, y: Math.floor(i / 5) * 550 },
       data: { table }
     }));
 
@@ -58,10 +88,16 @@ function App() {
       })
     })
 
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(newNodes, newEdges, 'LR');
-
-    setNodes(layoutedNodes);
-    setEdges(layoutedEdges);
+    if (!savedPositions || Object.keys(savedPositions).length === 0) {
+      // First time layout
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(newNodes, newEdges, 'LR');
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
+    } else {
+      // Use saved positions
+      setNodes(newNodes);
+      setEdges(newEdges);
+    }
   }, [tables, setNodes, setEdges]);
 
   const processFile = async (file: File) => {
@@ -72,6 +108,8 @@ function App() {
       const text = await file.text()
       const parsedTables = await processPostgresSchema(text)
       const analyzedTables = analyzeSchema(parsedTables)
+      // Clear positions for new file
+      localStorage.removeItem('erd-positions');
       setTables(analyzedTables)
     } catch (err: any) {
       console.error(err)
