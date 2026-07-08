@@ -99,6 +99,8 @@ function App() {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null)
   
+  const [selectedTable, setSelectedTable] = useState<TableData | null>(null)
+  
   const [error, setError] = useState<string | null>(null)
   const [isParsing, setIsParsing] = useState(false)
   
@@ -192,6 +194,10 @@ function App() {
 
   const onEdgeMouseLeave = () => {
     setHoveredEdgeId(null);
+  }
+
+  const onNodeClick = (_: React.MouseEvent, node: Node) => {
+    setSelectedTable(node.data.table);
   }
 
   // Derive styled nodes and edges based on hover state
@@ -367,7 +373,7 @@ function App() {
             Upload New File
           </button>
         </div>
-        <div style={{ flex: 1, backgroundColor: '#0f172a' }}>
+        <div style={{ flex: 1, backgroundColor: '#0f172a', position: 'relative' }}>
           <ReactFlow 
             nodes={styledNodes} 
             edges={styledEdges} 
@@ -378,12 +384,91 @@ function App() {
             onNodeMouseLeave={onNodeMouseLeave}
             onEdgeMouseEnter={onEdgeMouseEnter}
             onEdgeMouseLeave={onEdgeMouseLeave}
+            onNodeClick={onNodeClick}
             fitView
             minZoom={0.1}
           >
             <Background color="#1e293b" gap={24} size={2} />
             <Controls style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', fill: '#94a3b8' }} />
           </ReactFlow>
+
+          {/* TABLE DETAILS SIDE PANEL */}
+          {selectedTable && (
+            <div style={{
+              position: 'absolute',
+              top: '73px', // Below the header
+              right: 0,
+              bottom: 0,
+              width: '400px',
+              backgroundColor: 'rgba(15, 23, 42, 0.95)',
+              backdropFilter: 'blur(16px)',
+              borderLeft: '1px solid #334155',
+              boxShadow: '-10px 0 25px rgba(0,0,0,0.5)',
+              zIndex: 100,
+              padding: '2rem',
+              display: 'flex',
+              flexDirection: 'column',
+              overflowY: 'auto'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#f8fafc', fontWeight: 600 }}>{selectedTable.name}</h2>
+                <button 
+                  onClick={() => setSelectedTable(null)}
+                  style={{ 
+                    background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.5rem',
+                    borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#1e293b'; e.currentTarget.style.color = '#f8fafc'; }}
+                  onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94a3b8'; }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+
+              <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Columns</h4>
+              <ul style={{ paddingLeft: '0', margin: '0 0 2rem 0', listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {selectedTable.columns.map(col => {
+                  const isPrimaryKey = selectedTable.primaryKeys?.includes(col.name);
+                  return (
+                    <li key={col.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '0.75rem', borderBottom: '1px solid #1e293b' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <strong style={{ color: '#f8fafc', fontSize: '1.05rem', fontWeight: 500 }}>{col.name}</strong>
+                        {isPrimaryKey && (
+                          <span className="primary-badge" style={{ fontSize: '0.7rem', fontWeight: '600', padding: '2px 6px', borderRadius: '4px' }}>P.K</span>
+                        )}
+                      </div>
+                      <span style={{ color: '#94a3b8', fontSize: '0.9rem', fontFamily: 'monospace' }}>{col.type}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {selectedTable.foreignKeys && selectedTable.foreignKeys.length > 0 && (
+                <div>
+                  <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Relationships</h4>
+                  <ul style={{ paddingLeft: '0', margin: '0', listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {selectedTable.foreignKeys.map((fk, i) => (
+                      <li key={i} style={{ backgroundColor: '#1e293b', padding: '1rem', borderRadius: '8px', border: '1px solid #334155' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                          <span className="relationship-badge" style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.05em' }}>
+                            {fk.relationType}
+                          </span>
+                        </div>
+                        <div style={{ color: '#cbd5e1', fontSize: '0.9rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <code style={{ color: '#f8fafc', background: '#0f172a', padding: '4px 8px', borderRadius: '4px' }}>{fk.columnNames.join(', ')}</code> 
+                          <span style={{ color: '#64748b' }}>&rarr;</span> 
+                          <code style={{ color: '#f8fafc', background: '#0f172a', padding: '4px 8px', borderRadius: '4px' }}>{fk.targetTable}({fk.targetColumnNames.join(', ')})</code>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     )
