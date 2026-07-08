@@ -339,7 +339,7 @@ function App() {
           zIndex: 50
         }}>
           <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ color: '#38bdf8' }}>SchemaLens</span> ERD Canvas
+            <span style={{ color: '#38bdf8' }}>ERDiagram</span> Canvas
           </h2>
           <button 
             onClick={() => setTables([])} 
@@ -393,7 +393,7 @@ function App() {
     <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#0f172a' }}>
       <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
         <h1 style={{ fontSize: '3rem', fontWeight: 700, margin: '0 0 1rem 0', letterSpacing: '-0.025em' }}>
-          <span style={{ color: '#38bdf8' }}>SchemaLens</span> ERD
+          <span style={{ color: '#38bdf8' }}>ERDiagram</span>
         </h1>
         <p style={{ color: '#94a3b8', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6 }}>
           Upload a PostgreSQL <code>schema.sql</code> dump file to instantly visualize its tables and relationships in a beautiful, interactive canvas.
