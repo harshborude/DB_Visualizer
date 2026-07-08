@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
-import { parseSchema, type TableData } from './parser'
+import { processPostgresSchema } from './parser/sql/postgresql'
+import type { TableData } from './types/schema'
 
 function App() {
   const [tables, setTables] = useState<TableData[]>([])
@@ -14,7 +15,7 @@ function App() {
     
     try {
       const text = await file.text()
-      const parsedTables = await parseSchema(text)
+      const parsedTables = await processPostgresSchema(text)
       setTables(parsedTables)
     } catch (err: any) {
       console.error(err)
@@ -88,13 +89,51 @@ function App() {
               <div key={table.name} style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '1rem', minWidth: '250px' }}>
                 <h3 style={{ margin: '0 0 1rem 0' }}>{table.name}</h3>
                 <ul style={{ paddingLeft: '1.2rem', margin: '0' }}>
-                  {table.columns.map(col => (
-                    <li key={col.name}>
-                      <strong>{col.name}</strong> 
-                      <span style={{ color: '#666', marginLeft: '0.5rem', fontSize: '0.9em' }}>{col.type}</span>
-                    </li>
-                  ))}
+                  {table.columns.map(col => {
+                    const isPrimaryKey = table.primaryKeys?.includes(col.name)
+                    return (
+                      <li key={col.name}>
+                        <strong>{col.name}</strong> 
+                        <span style={{ color: '#666', marginLeft: '0.5rem', fontSize: '0.9em' }}>{col.type}</span>
+                        {isPrimaryKey && (
+                          <span title="Primary Key" style={{ 
+                            marginLeft: '0.5rem', 
+                            fontSize: '0.75rem', 
+                            fontWeight: 'bold', 
+                            color: '#d97706',
+                            backgroundColor: '#fef3c7',
+                            padding: '2px 6px',
+                            borderRadius: '4px'
+                          }}>P.K</span>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
+                {table.foreignKeys && table.foreignKeys.length > 0 && (
+                  <div style={{ marginTop: '1rem', paddingTop: '0.5rem', borderTop: '1px dashed #ccc' }}>
+                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#555' }}>Relationships</h4>
+                    <ul style={{ paddingLeft: '1.2rem', margin: '0', fontSize: '0.85rem', listStyleType: 'none', marginLeft: '-1.2rem' }}>
+                      {table.foreignKeys.map((fk, i) => (
+                        <li key={i} style={{ marginBottom: '4px' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            backgroundColor: '#e0e7ff',
+                            color: '#4338ca',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: 'bold',
+                            marginRight: '6px'
+                          }}>
+                            {fk.relationType}
+                          </span>
+                          <code>{fk.columnNames.join(', ')}</code> &rarr; <code>{fk.targetTable}({fk.targetColumnNames.join(', ')})</code>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -1,16 +1,6 @@
 // @ts-ignore
 import Module from 'pg-query-emscripten'
 
-export type ColumnData = {
-  name: string
-  type: string
-}
-
-export type TableData = {
-  name: string
-  columns: ColumnData[]
-}
-
 const sanitizePgDumpMetaCommands = (sql: string): string =>
   sql
     .split('\n')
@@ -35,7 +25,7 @@ const stripCopyData = (sql: string): string => {
   return sql.replace(/COPY .*? FROM stdin;\r?\n[\s\S]*?\r?\n\\\./g, '-- STRIPPED COPY DATA')
 }
 
-export async function parseSchema(sql: string): Promise<TableData[]> {
+export async function parsePostgresSql(sql: string): Promise<any> {
   console.log(`[parser] Initializing WASM Module...`)
   let pgQuery: any;
   try {
@@ -71,50 +61,5 @@ export async function parseSchema(sql: string): Promise<TableData[]> {
     throw new Error(result.error.message)
   }
 
-  console.log(`[parser] Parse successful. AST contains ${result.parse_tree?.stmts?.length || 0} statements.`)
-
-  const tables: TableData[] = []
-  
-  // The structure of the result is result.parse_tree.stmts array.
-  // Each stmt has a RawStmt which has a stmt property which holds the actual node type (e.g., CreateStmt).
-  const stmts = result.parse_tree?.stmts || []
-
-  for (const item of stmts) {
-    const rawStmt = item.stmt
-    if (!rawStmt) continue
-
-    if (rawStmt.CreateStmt) {
-      const createStmt = rawStmt.CreateStmt
-      const tableName = createStmt.relation?.relname
-      if (!tableName) continue
-      
-      const columns: ColumnData[] = []
-      
-      for (const tableElt of createStmt.tableElts || []) {
-        if (tableElt.ColumnDef) {
-          const colDef = tableElt.ColumnDef
-          const colName = colDef.colname
-          
-          // Type names are deeply nested (e.g. TypeName.names[0].String.sval)
-          let colType = "unknown"
-          if (colDef.typeName?.names) {
-            const nameParts = colDef.typeName.names.map((n: any) => n.String?.sval).filter(Boolean)
-            colType = nameParts.join(".")
-          }
-          
-          columns.push({
-            name: colName,
-            type: colType
-          })
-        }
-      }
-      
-      tables.push({
-        name: tableName,
-        columns
-      })
-    }
-  }
-
-  return tables
+  return result.parse_tree;
 }
