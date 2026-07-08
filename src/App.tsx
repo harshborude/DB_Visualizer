@@ -1,9 +1,10 @@
-import { useState, useRef, useMemo, useEffect } from 'react'
-import ReactFlow, { Background, Controls, MarkerType, Handle, Position, useNodesState, useEdgesState } from 'reactflow'
-import type { Node, Edge } from 'reactflow'
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
+import ReactFlow, { Background, Controls, MarkerType, Handle, Position, useNodesState, useEdgesState, applyNodeChanges } from 'reactflow'
+import type { Node, Edge, NodeChange } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { processPostgresSchema } from './parser/sql/postgresql'
 import type { TableData } from './types/schema'
+import { getLayoutedElements } from './utils/layout'
 
 function TableNode({ data }: { data: { table: TableData, isHovered?: boolean, isConnected?: boolean, isFaded?: boolean } }) {
   const { table, isHovered, isConnected, isFaded } = data;
@@ -31,9 +32,9 @@ function TableNode({ data }: { data: { table: TableData, isHovered?: boolean, is
       transition: 'box-shadow 0.3s ease, border-color 0.3s ease, opacity 0.3s ease',
       color: '#f8fafc',
     }}>
-      <Handle type="target" position={Position.Top} style={{ background: '#38bdf8', width: '8px', height: '8px', border: 'none' }} />
+      <Handle type="target" position={Position.Left} style={{ background: '#38bdf8', width: '8px', height: '8px', border: 'none' }} />
       
-      <h3 style={{ margin: '0 0 1.25rem 0', color: '#f1f5f9', fontSize: '1.1rem', letterSpacing: '0.025em' }}>{table.name}</h3>
+      <h3 style={{ margin: '0 0 1.25rem 0', paddingBottom: '1rem', color: '#f1f5f9', fontSize: '1.4rem', letterSpacing: '0.025em', textAlign: 'center', borderBottom: '2px dotted #334155' }}>{table.name}</h3>
       
       <ul style={{ paddingLeft: '0', margin: '0', listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {table.columns.map(col => {
@@ -60,7 +61,7 @@ function TableNode({ data }: { data: { table: TableData, isHovered?: boolean, is
       </ul>
 
       {table.foreignKeys && table.foreignKeys.length > 0 && (
-        <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
+        <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '2px dotted #334155' }}>
           <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Relationships</h4>
           <ul style={{ paddingLeft: '0', margin: '0', fontSize: '0.85rem', listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {table.foreignKeys.map((fk, i) => (
@@ -85,14 +86,14 @@ function TableNode({ data }: { data: { table: TableData, isHovered?: boolean, is
         </div>
       )}
       
-      <Handle type="source" position={Position.Bottom} style={{ background: '#38bdf8', width: '8px', height: '8px', border: 'none' }} />
+      <Handle type="source" position={Position.Right} style={{ background: '#38bdf8', width: '8px', height: '8px', border: 'none' }} />
     </div>
   )
 }
 
 function App() {
   const [tables, setTables] = useState<TableData[]>([])
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>([])
+  const [nodes, setNodes] = useNodesState<Node[]>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([])
   
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
@@ -136,8 +137,10 @@ function App() {
       })
     })
 
-    setNodes(newNodes);
-    setEdges(newEdges);
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(newNodes, newEdges, 'LR');
+
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
   }, [tables, setNodes, setEdges]);
 
   const processFile = async (file: File) => {
@@ -259,6 +262,65 @@ function App() {
     });
   }, [edges, hoveredNodeId, hoveredEdgeId]);
 
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    setNodes((currentNodes) => {
+      let nextNodes = applyNodeChanges(changes, currentNodes);
+      
+      const positionChanges = changes.filter((c: any) => c.type === 'position' && c.dragging);
+      
+      if (positionChanges.length > 0) {
+        positionChanges.forEach((change: any) => {
+          const a = nextNodes.find(n => n.id === change.id);
+          if (!a) return;
+          
+          const wA = a.width ?? 320;
+          const hA = a.height ?? 300;
+          const cxA = a.position.x + wA / 2;
+          const cyA = a.position.y + hA / 2;
+          
+          nextNodes = nextNodes.map(b => {
+            if (a.id === b.id) return b;
+            
+            const wB = b.width ?? 320;
+            const hB = b.height ?? 300;
+            
+            const isColliding = (
+              a.position.x < b.position.x + wB &&
+              a.position.x + wA > b.position.x &&
+              a.position.y < b.position.y + hB &&
+              a.position.y + hA > b.position.y
+            );
+            
+            if (isColliding) {
+              const cxB = b.position.x + wB / 2;
+              const cyB = b.position.y + hB / 2;
+              
+              let dx = cxB - cxA;
+              let dy = cyB - cyA;
+              
+              if (dx === 0 && dy === 0) {
+                dx = Math.random() * 10 - 5;
+                dy = Math.random() * 10 - 5;
+              }
+              
+              // Apply heavily damped elastic push
+              return {
+                ...b,
+                position: {
+                  x: b.position.x + dx * 0.15,
+                  y: b.position.y + dy * 0.15,
+                }
+              };
+            }
+            return b;
+          });
+        });
+      }
+      
+      return nextNodes;
+    });
+  }, [setNodes]);
+
   if (tables.length > 0) {
     return (
       <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#0f172a' }}>
@@ -309,7 +371,7 @@ function App() {
           <ReactFlow 
             nodes={styledNodes} 
             edges={styledEdges} 
-            onNodesChange={onNodesChange}
+            onNodesChange={handleNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
             onNodeMouseEnter={onNodeMouseEnter}
