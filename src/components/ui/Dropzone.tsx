@@ -1,0 +1,95 @@
+import React, { useRef } from 'react';
+
+interface DropzoneProps {
+  onFileAccepted: (file: File) => void;
+  isParsing: boolean;
+  error: string | null;
+}
+
+export function Dropzone({ onFileAccepted, isParsing, error }: DropzoneProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      onFileAccepted(file);
+    }
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (file) {
+      onFileAccepted(file);
+    }
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  return (
+    <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#0f172a' }}>
+      <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+        <h1 style={{ fontSize: '3rem', fontWeight: 700, margin: '0 0 1rem 0', letterSpacing: '-0.025em' }}>
+          <span style={{ color: '#38bdf8' }}>ERDiagram</span>
+        </h1>
+        <p style={{ color: '#94a3b8', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6 }}>
+          Upload a PostgreSQL <code>schema.sql</code> dump file to instantly visualize its tables and relationships in a beautiful, interactive canvas.
+        </p>
+      </div>
+      
+      <div 
+        className="glass-dropzone"
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onClick={() => fileInputRef.current?.click()}
+        style={{
+          borderRadius: '16px',
+          padding: '4rem 2rem',
+          textAlign: 'center',
+          cursor: 'pointer',
+          width: '100%',
+          maxWidth: '600px',
+        }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '1rem' }}>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        <p style={{ color: '#f1f5f9', fontSize: '1.2rem', fontWeight: 500, margin: '0 0 0.5rem 0' }}>Drag and drop your schema.sql here</p>
+        <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>or click to browse from your computer</p>
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleFileChange} 
+          accept=".sql" 
+          style={{ display: 'none' }} 
+        />
+      </div>
+
+      {isParsing && (
+        <div style={{ marginTop: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#38bdf8' }}>
+          <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="2" x2="12" y2="6"></line>
+            <line x1="12" y1="18" x2="12" y2="22"></line>
+            <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+            <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+            <line x1="2" y1="12" x2="6" y2="12"></line>
+            <line x1="18" y1="12" x2="22" y2="12"></line>
+            <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+            <line x1="16.24" y1="4.93" x2="19.07" y2="7.76"></line>
+          </svg>
+          <span>Parsing database schema via WASM...</span>
+        </div>
+      )}
+      
+      {error && (
+        <div style={{ color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', marginTop: '2rem', padding: '1rem 1.5rem', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)', maxWidth: '600px', width: '100%' }}>
+          <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Error Parsing File:</strong> {error}
+        </div>
+      )}
+    </div>
+  );
+}
