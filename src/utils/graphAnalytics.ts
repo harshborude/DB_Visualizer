@@ -11,6 +11,7 @@ export interface GraphMetrics {
   impactRadius: number; // Number of downstream tables affected if this table changes
   partOfCycle: boolean;
   componentId: number; // Island / connected component ID
+  componentSize: number; // Number of tables in this component
 }
 
 export interface AnalyzedTableData extends TableData {
@@ -44,6 +45,7 @@ export function analyzeSchema(tables: TableData[]): AnalyzedTableData[] {
         impactRadius: 0,
         partOfCycle: false,
         componentId: 0,
+        componentSize: 0,
       }
     });
     outgoingEdges.set(t.name, []);
@@ -165,6 +167,7 @@ export function analyzeSchema(tables: TableData[]): AnalyzedTableData[] {
   // Two tables are in the same component if they are connected by any path, ignoring direction.
   let currentComponentId = 1;
   const visitedForComponents = new Set<string>();
+  const componentSizes = new Map<number, number>();
 
   const componentDFS = (node: string, compId: number) => {
     visitedForComponents.add(node);
@@ -176,18 +179,27 @@ export function analyzeSchema(tables: TableData[]): AnalyzedTableData[] {
       ...(incomingEdges.get(node) || [])
     ];
 
+    let size = 1;
+
     for (const neighbor of neighbors) {
       if (!visitedForComponents.has(neighbor)) {
-        componentDFS(neighbor, compId);
+        size += componentDFS(neighbor, compId);
       }
     }
+    return size;
   };
 
   tableMap.forEach((_, node) => {
     if (!visitedForComponents.has(node)) {
-      componentDFS(node, currentComponentId);
+      const size = componentDFS(node, currentComponentId);
+      componentSizes.set(currentComponentId, size);
       currentComponentId++;
     }
+  });
+
+  // Assign componentSize to each table
+  tableMap.forEach((analyzedTable) => {
+    analyzedTable.metrics.componentSize = componentSizes.get(analyzedTable.metrics.componentId) || 0;
   });
 
   return Array.from(tableMap.values());
