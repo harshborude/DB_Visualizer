@@ -96,7 +96,13 @@ export function SearchPanelShell({ tables, selectedTable, onSelectTable, onHover
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  flexShrink: 0,
+                  lineHeight: '1.5',
+                  minHeight: '2.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
                 onMouseOver={(e) => {
                   if (!isSelected) {

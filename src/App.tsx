@@ -38,6 +38,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview')
   
   const [error, setError] = useState<string | null>(null)
+  const [rfInstance, setRfInstance] = useState<any>(null);
   const [isParsing, setIsParsing] = useState(false)
 
   const nodeTypes = useMemo(() => ({ table: TableNode }), []);
@@ -395,6 +396,7 @@ function App() {
             onEdgeMouseLeave={onEdgeMouseLeave}
             onNodeClick={onNodeClick}
             onPaneClick={() => setSelectedTable(null)}
+            onInit={setRfInstance}
             fitView
             minZoom={0.1}
           >
@@ -418,6 +420,17 @@ function App() {
             onSelectTable={(table) => {
               setSelectedTable(table);
               setActiveTab('overview');
+              
+              if (rfInstance) {
+                const node = nodes.find(n => n.id === table.name);
+                if (node) {
+                  const width = node.width ?? 320;
+                  const height = node.height ?? 300;
+                  const x = node.position.x + width / 2;
+                  const y = node.position.y + height / 2;
+                  rfInstance.setCenter(x, y, { zoom: 0.3, duration: 800 });
+                }
+              }
             }}
             onHoverTable={(tableName) => setHoveredNodeId(tableName)}
           />
