@@ -8,6 +8,22 @@ interface DropzoneProps {
 
 export function Dropzone({ onFileAccepted, isParsing, error }: DropzoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isFetchingSample, setIsFetchingSample] = React.useState(false);
+
+  const loadSampleDatabase = async () => {
+    setIsFetchingSample(true);
+    try {
+      const response = await fetch('/dvdrental.sql');
+      if (!response.ok) throw new Error("Failed to fetch sample database");
+      const sqlText = await response.text();
+      const sampleFile = new File([sqlText], 'dvdrental.sql', { type: 'text/plain' });
+      onFileAccepted(sampleFile);
+    } catch (err) {
+      console.error("Failed to load sample database:", err);
+    } finally {
+      setIsFetchingSample(false);
+    }
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -95,7 +111,7 @@ export function Dropzone({ onFileAccepted, isParsing, error }: DropzoneProps) {
         />
       </div>
 
-      {isParsing && (
+      {isFetchingSample || isParsing ? (
         <div style={{ marginTop: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#38bdf8' }}>
           <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="2" x2="12" y2="6"></line>
@@ -107,8 +123,35 @@ export function Dropzone({ onFileAccepted, isParsing, error }: DropzoneProps) {
             <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
             <line x1="16.24" y1="4.93" x2="19.07" y2="7.76"></line>
           </svg>
-          <span>Parsing database schema via WASM...</span>
+          <span>{isFetchingSample ? 'Downloading sample database...' : 'Parsing database schema...'}</span>
         </div>
+      ) : (
+        <button 
+          onClick={loadSampleDatabase}
+          style={{ 
+            marginTop: '2rem',
+            padding: '0.75rem 1.5rem',
+            backgroundColor: 'transparent',
+            color: '#cbd5e1',
+            border: '1px solid #334155',
+            borderRadius: '8px',
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.backgroundColor = '#1e293b';
+            e.currentTarget.style.color = '#f8fafc';
+            e.currentTarget.style.borderColor = '#475569';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = '#cbd5e1';
+            e.currentTarget.style.borderColor = '#334155';
+          }}
+        >
+          Don't have one? Load sample database
+        </button>
       )}
       
       {error && (
