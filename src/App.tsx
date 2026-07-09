@@ -9,6 +9,7 @@ import { getLayoutedElements } from './utils/layout'
 import { TableNode } from './components/canvas/TableNode'
 import { Dropzone } from './components/ui/Dropzone'
 import { DetailsPanelShell } from './components/panel/DetailsPanelShell'
+import { SearchPanelShell } from './components/panel/SearchPanelShell'
 import type { ActiveTab } from './types/ui'
 
 function App() {
@@ -287,7 +288,7 @@ function App() {
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid #1e293b', 
           display: 'flex', 
-          justifyContent: 'space-between', 
+          justifyContent: 'flex-end', 
           alignItems: 'center',
           position: 'absolute',
           top: 0,
@@ -306,7 +307,10 @@ function App() {
               alignItems: 'center', 
               gap: '0.5rem',
               cursor: 'pointer',
-              transition: 'opacity 0.2s ease'
+              transition: 'opacity 0.2s ease',
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)'
             }}
             onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
             onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
@@ -407,6 +411,16 @@ function App() {
               onClose={() => setSelectedTable(null)}
             />
           )}
+
+          <SearchPanelShell
+            tables={tables}
+            selectedTable={selectedTable}
+            onSelectTable={(table) => {
+              setSelectedTable(table);
+              setActiveTab('overview');
+            }}
+            onHoverTable={(tableName) => setHoveredNodeId(tableName)}
+          />
         </div>
       </div>
     )
