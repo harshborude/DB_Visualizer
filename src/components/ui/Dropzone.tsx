@@ -101,7 +101,13 @@ export function Dropzone({ onFileAccepted, isParsing, error }: DropzoneProps) {
           <line x1="12" y1="3" x2="12" y2="15"></line>
         </svg>
         <p style={{ color: '#f1f5f9', fontSize: '1.2rem', fontWeight: 500, margin: '0 0 0.5rem 0' }}>Drag and drop your schema.sql here</p>
-        <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>or click to browse from your computer</p>
+        <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '0 0 1.5rem 0' }}>or click to browse from your computer</p>
+        
+        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem', backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '12px', color: '#38bdf8' }}>PostgreSQL</span>
+          <span style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem', backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '12px', color: '#38bdf8' }}>MySQL</span>
+          <span style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem', backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '12px', color: '#38bdf8' }}>SQLite</span>
+        </div>
         <input 
           type="file" 
           ref={fileInputRef} 
