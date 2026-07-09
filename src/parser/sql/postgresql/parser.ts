@@ -43,13 +43,12 @@ export async function parsePostgresSql(sql: string): Promise<any> {
   
   console.log(`[parser] Attempting to parse SQL payload of length: ${sql.length}`)
   const noDataSql = stripCopyData(sql)
-  console.log(`[parser] Stripped COPY data. New payload length: ${noDataSql.length}`)
   
-  const sanitizedSql = sanitizePgDumpMetaCommands(noDataSql)
+  const finalSql = sanitizePgDumpMetaCommands(noDataSql)
   
   let result: any;
   try {
-    result = pgQuery.parse(sanitizedSql)
+    result = pgQuery.parse(finalSql)
     console.log(`[parser] pgQuery.parse(sql) completed without throwing an exception.`)
   } catch (err) {
     console.error(`[parser] Exception thrown during pgQuery.parse:`, err)

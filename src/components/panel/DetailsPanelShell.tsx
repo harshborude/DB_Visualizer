@@ -6,6 +6,7 @@ import { KeysTab } from './tabs/KeysTab';
 import { RelationshipsTab } from './tabs/RelationshipsTab';
 import { HealthTab } from './tabs/HealthTab';
 import { ImpactTab } from './tabs/ImpactTab';
+import { SuggestionsTab } from './tabs/SuggestionsTab';
 import { DocsTab } from './tabs/DocsTab';
 
 interface DetailsPanelShellProps {
@@ -81,11 +82,12 @@ export function DetailsPanelShell({ tables, selectedTable, activeTab, onTabChang
       {activeTab === 'columns' && <ColumnsTab selectedTable={selectedTable} />}
       {activeTab === 'keys' && <KeysTab selectedTable={selectedTable} />}
       {activeTab === 'relationships' && <RelationshipsTab selectedTable={selectedTable} tables={tables} />}
-      {activeTab === 'health' && <HealthTab selectedTable={selectedTable} />}
+      {activeTab === 'health' && <HealthTab selectedTable={selectedTable} tables={tables} />}
       {activeTab === 'impact' && <ImpactTab selectedTable={selectedTable} />}
+      {activeTab === 'suggestions' && <SuggestionsTab selectedTable={selectedTable} tables={tables} />}
       {activeTab === 'docs' && <DocsTab selectedTable={selectedTable} />}
 
-      {activeTab !== 'overview' && activeTab !== 'columns' && activeTab !== 'keys' && activeTab !== 'relationships' && activeTab !== 'health' && activeTab !== 'impact' && activeTab !== 'docs' && (
+      {activeTab !== 'overview' && activeTab !== 'columns' && activeTab !== 'keys' && activeTab !== 'relationships' && activeTab !== 'health' && activeTab !== 'impact' && activeTab !== 'suggestions' && activeTab !== 'docs' && (
         <div style={{ padding: '3rem 2rem', textAlign: 'center', color: '#94a3b8', backgroundColor: '#1e293b', borderRadius: '12px', border: '1px dashed #475569' }}>
           <h3 style={{ color: '#f8fafc', marginBottom: '1rem', fontSize: '1.25rem' }}>{TABS.find(t => t.id === activeTab)?.label} Panel</h3>
           <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.5 }}>

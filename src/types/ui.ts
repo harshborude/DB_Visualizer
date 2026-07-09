@@ -1,4 +1,4 @@
-export type ActiveTab = 'overview' | 'columns' | 'keys' | 'relationships' | 'health' | 'impact' | 'docs';
+export type ActiveTab = 'overview' | 'columns' | 'keys' | 'relationships' | 'health' | 'impact' | 'suggestions' | 'docs';
 
 export const TABS: { id: ActiveTab, label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -7,5 +7,6 @@ export const TABS: { id: ActiveTab, label: string }[] = [
   { id: 'relationships', label: 'Relationships' },
   { id: 'health', label: 'Health' },
   { id: 'impact', label: 'Impact' },
+  { id: 'suggestions', label: 'Suggestions' },
   { id: 'docs', label: 'Documentation' }
 ];

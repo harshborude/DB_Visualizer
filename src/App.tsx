@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import ReactFlow, { Background, Controls, MarkerType, type Node, type Edge, type NodeChange, applyNodeChanges, useNodesState, useEdgesState } from 'reactflow'
 import 'reactflow/dist/style.css'
-import { processPostgresSchema } from './parser/sql/postgresql'
+import { processSchema } from './parser/sql'
 import { analyzeSchema, type AnalyzedTableData } from './utils/graphAnalytics'
 import { getLayoutedElements } from './utils/layout'
 
@@ -106,7 +106,7 @@ function App() {
     
     try {
       const text = await file.text()
-      const parsedTables = await processPostgresSchema(text)
+      const parsedTables = await processSchema(text)
       const analyzedTables = analyzeSchema(parsedTables)
       // Clear positions for new file
       localStorage.removeItem('erd-positions');

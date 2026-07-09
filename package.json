@@ -13,6 +13,7 @@
     "@types/dagre": "^0.7.54",
     "@vercel/analytics": "^2.0.1",
     "dagre": "^0.8.5",
+    "node-sql-parser": "^5.4.0",
     "pg-query-emscripten": "^5.1.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

@@ -30,13 +30,48 @@ export function Dropzone({ onFileAccepted, isParsing, error }: DropzoneProps) {
 
   return (
     <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#0f172a' }}>
-      <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-        <h1 style={{ fontSize: '3rem', fontWeight: 700, margin: '0 0 1rem 0', letterSpacing: '-0.025em' }}>
+      <div style={{ textAlign: 'center', marginBottom: '3rem', maxWidth: '800px', margin: '0 auto 3rem auto' }}>
+        <h1 style={{ fontSize: '3rem', fontWeight: 700, margin: '0 0 1.5rem 0', letterSpacing: '-0.025em' }}>
           <span style={{ color: '#38bdf8' }}>ERDiagram</span>
         </h1>
-        <p style={{ color: '#94a3b8', fontSize: '1.1rem', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6 }}>
-          Upload a PostgreSQL <code>schema.sql</code> dump file to instantly visualize its tables and relationships in a beautiful, interactive canvas.
+        
+        <p style={{ color: '#e2e8f0', fontSize: '1.25rem', marginBottom: '2rem', lineHeight: 1.6, fontWeight: 500 }}>
+          A powerful tool for developers to instantly visualize, understand, and optimize large database schemas.
         </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', textAlign: 'left', marginBottom: '2rem' }}>
+          
+          <div style={{ backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '12px', border: '1px solid #334155' }}>
+            <div style={{ color: '#38bdf8', marginBottom: '0.75rem' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            </div>
+            <h3 style={{ margin: '0 0 0.5rem 0', color: '#f8fafc', fontSize: '1.1rem' }}>Privacy First</h3>
+            <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5 }}>
+              Your database schema never leaves your machine. All parsing and graph analytics happen entirely locally in your browser.
+            </p>
+          </div>
+
+          <div style={{ backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '12px', border: '1px solid #334155' }}>
+            <div style={{ color: '#38bdf8', marginBottom: '0.75rem' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </div>
+            <h3 style={{ margin: '0 0 0.5rem 0', color: '#f8fafc', fontSize: '1.1rem' }}>Instant Visualization</h3>
+            <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5 }}>
+              Upload massive SQL dumps to instantly generate a clean, interactive canvas. Traverse complex dependencies effortlessly.
+            </p>
+          </div>
+
+          <div style={{ backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '12px', border: '1px solid #334155' }}>
+            <div style={{ color: '#38bdf8', marginBottom: '0.75rem' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path></svg>
+            </div>
+            <h3 style={{ margin: '0 0 0.5rem 0', color: '#f8fafc', fontSize: '1.1rem' }}>Schema Intelligence</h3>
+            <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5 }}>
+              Get automated suggestions about database normalization, structural redundancies, circular dependencies, and isolated tables.
+            </p>
+          </div>
+
+        </div>
       </div>
       
       <div 
