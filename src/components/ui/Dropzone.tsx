@@ -42,9 +42,6 @@ export function Dropzone({ onFileAccepted, isParsing, error }: DropzoneProps) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', textAlign: 'left', marginBottom: '2rem' }}>
           
           <div style={{ backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '12px', border: '1px solid #334155' }}>
-            <div style={{ color: '#38bdf8', marginBottom: '0.75rem' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-            </div>
             <h3 style={{ margin: '0 0 0.5rem 0', color: '#f8fafc', fontSize: '1.1rem' }}>Privacy First</h3>
             <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5 }}>
               Your database schema never leaves your machine. All parsing and graph analytics happen entirely locally in your browser.
@@ -52,9 +49,6 @@ export function Dropzone({ onFileAccepted, isParsing, error }: DropzoneProps) {
           </div>
 
           <div style={{ backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '12px', border: '1px solid #334155' }}>
-            <div style={{ color: '#38bdf8', marginBottom: '0.75rem' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-            </div>
             <h3 style={{ margin: '0 0 0.5rem 0', color: '#f8fafc', fontSize: '1.1rem' }}>Instant Visualization</h3>
             <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5 }}>
               Upload massive SQL dumps to instantly generate a clean, interactive canvas. Traverse complex dependencies effortlessly.
@@ -62,9 +56,6 @@ export function Dropzone({ onFileAccepted, isParsing, error }: DropzoneProps) {
           </div>
 
           <div style={{ backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '12px', border: '1px solid #334155' }}>
-            <div style={{ color: '#38bdf8', marginBottom: '0.75rem' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path></svg>
-            </div>
             <h3 style={{ margin: '0 0 0.5rem 0', color: '#f8fafc', fontSize: '1.1rem' }}>Schema Intelligence</h3>
             <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5 }}>
               Get automated suggestions about database normalization, structural redundancies, circular dependencies, and isolated tables.

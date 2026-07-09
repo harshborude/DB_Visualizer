@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import ReactFlow, { Background, Controls, MarkerType, type Node, type Edge, type NodeChange, applyNodeChanges, useNodesState, useEdgesState } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { processSchema } from './parser/sql'
@@ -12,6 +12,14 @@ import { DetailsPanelShell } from './components/panel/DetailsPanelShell'
 import type { ActiveTab } from './types/ui'
 
 function App() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
   const [tables, setTables] = useState<AnalyzedTableData[]>(() => {
     try {
       const saved = localStorage.getItem('erd-tables');
@@ -111,6 +119,7 @@ function App() {
       // Clear positions for new file
       localStorage.removeItem('erd-positions');
       setTables(analyzedTables)
+      setSelectedTable(null)
     } catch (err: any) {
       console.error(err)
       setError(err.message || "An error occurred while parsing the schema.")
@@ -284,35 +293,89 @@ function App() {
           right: 0,
           zIndex: 50
         }}>
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h2 
+            onClick={() => setTables([])}
+            style={{ 
+              margin: 0, 
+              fontSize: '1.25rem', 
+              fontWeight: 600, 
+              color: '#f8fafc', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.5rem',
+              cursor: 'pointer',
+              transition: 'opacity 0.2s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
+            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+          >
             <span style={{ color: '#38bdf8' }}>ERDiagram</span> Canvas
           </h2>
-          <button 
-            onClick={() => setTables([])} 
-            style={{ 
-              padding: '0.5rem 1rem', 
-              cursor: 'pointer', 
-              backgroundColor: 'transparent',
-              border: '1px solid #334155',
-              color: '#cbd5e1',
-              borderRadius: '6px',
-              transition: 'all 0.2s ease',
-              fontWeight: 500
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#1e293b';
-              e.currentTarget.style.borderColor = '#475569';
-              e.currentTarget.style.color = '#f8fafc';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.borderColor = '#334155';
-              e.currentTarget.style.color = '#cbd5e1';
-            }}
-          >
-            Upload New File
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {isParsing && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#38bdf8', fontSize: '0.9rem' }}>
+                <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="2" x2="12" y2="6"></line>
+                  <line x1="12" y1="18" x2="12" y2="22"></line>
+                  <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                  <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                  <line x1="2" y1="12" x2="6" y2="12"></line>
+                  <line x1="18" y1="12" x2="22" y2="12"></line>
+                  <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                  <line x1="16.24" y1="4.93" x2="19.07" y2="7.76"></line>
+                </svg>
+                <span>Parsing...</span>
+              </div>
+            )}
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileChange} 
+              accept=".sql" 
+              style={{ display: 'none' }} 
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()} 
+              disabled={isParsing}
+              style={{ 
+                padding: '0.5rem 1rem', 
+                cursor: isParsing ? 'not-allowed' : 'pointer', 
+                backgroundColor: 'transparent',
+                border: '1px solid #334155',
+                color: '#cbd5e1',
+                borderRadius: '6px',
+                transition: 'all 0.2s ease',
+                fontWeight: 500,
+                opacity: isParsing ? 0.5 : 1
+              }}
+              onMouseOver={(e) => {
+                if (isParsing) return;
+                e.currentTarget.style.backgroundColor = '#1e293b';
+                e.currentTarget.style.borderColor = '#475569';
+                e.currentTarget.style.color = '#f8fafc';
+              }}
+              onMouseOut={(e) => {
+                if (isParsing) return;
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.borderColor = '#334155';
+                e.currentTarget.style.color = '#cbd5e1';
+              }}
+            >
+              Upload New File
+            </button>
+          </div>
         </div>
+        
+        {/* Error banner if upload failed from canvas */}
+        {error && (
+          <div style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-50%)', zIndex: 60, color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '0.75rem 1.5rem', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+            <strong>Error:</strong> {error}
+            <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+        )}
+
         <div style={{ flex: 1, backgroundColor: '#0f172a', position: 'relative' }}>
           <ReactFlow 
             nodes={styledNodes} 
