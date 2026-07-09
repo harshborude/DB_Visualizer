@@ -149,9 +149,10 @@ function App() {
     setActiveTab('overview');
   }
 
-  // Derive styled nodes and edges based on hover state
+  // Derive styled nodes and edges based on hover and selection state
   const styledNodes = useMemo(() => {
-    if (!hoveredNodeId && !hoveredEdgeId) return nodes.map(n => ({ ...n, data: { ...n.data, isFaded: false, isHovered: false, isConnected: false } }));
+    const activeNodeId = hoveredNodeId || selectedTable?.name || null;
+    if (!activeNodeId && !hoveredEdgeId) return nodes.map(n => ({ ...n, data: { ...n.data, isFaded: false, isHovered: false, isConnected: false } }));
     
     const activeEdge = edges.find(e => e.id === hoveredEdgeId);
 
@@ -160,9 +161,9 @@ function App() {
       let isConnected = false;
       let isFaded = true;
 
-      if (hoveredNodeId) {
-        isHovered = n.id === hoveredNodeId;
-        isConnected = edges.some(e => (e.source === hoveredNodeId && e.target === n.id) || (e.target === hoveredNodeId && e.source === n.id));
+      if (activeNodeId) {
+        isHovered = n.id === activeNodeId;
+        isConnected = edges.some(e => (e.source === activeNodeId && e.target === n.id) || (e.target === activeNodeId && e.source === n.id));
         isFaded = !isHovered && !isConnected;
       } else if (activeEdge) {
         isConnected = n.id === activeEdge.source || n.id === activeEdge.target;
@@ -173,16 +174,17 @@ function App() {
         ...n,
         data: {
           ...n.data,
-          isHovered,
+          isHovered: n.id === hoveredNodeId || n.id === selectedTable?.name,
           isConnected,
           isFaded
         }
       }
     });
-  }, [nodes, edges, hoveredNodeId, hoveredEdgeId]);
+  }, [nodes, edges, hoveredNodeId, hoveredEdgeId, selectedTable]);
 
   const styledEdges = useMemo(() => {
-    if (!hoveredNodeId && !hoveredEdgeId) return edges.map(e => ({
+    const activeNodeId = hoveredNodeId || selectedTable?.name || null;
+    if (!activeNodeId && !hoveredEdgeId) return edges.map(e => ({
       ...e, 
       style: { ...e.style, opacity: 1, stroke: '#94a3b8', strokeWidth: 3, zIndex: 0 },
       animated: false,
@@ -192,8 +194,8 @@ function App() {
     return edges.map(e => {
       let isConnected = false;
       
-      if (hoveredNodeId) {
-        isConnected = e.source === hoveredNodeId || e.target === hoveredNodeId;
+      if (activeNodeId) {
+        isConnected = e.source === activeNodeId || e.target === activeNodeId;
       } else if (hoveredEdgeId) {
         isConnected = e.id === hoveredEdgeId;
       }
@@ -215,7 +217,7 @@ function App() {
         }
       };
     });
-  }, [edges, hoveredNodeId, hoveredEdgeId]);
+  }, [edges, hoveredNodeId, hoveredEdgeId, selectedTable]);
 
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((currentNodes) => {
@@ -388,6 +390,7 @@ function App() {
             onEdgeMouseEnter={onEdgeMouseEnter}
             onEdgeMouseLeave={onEdgeMouseLeave}
             onNodeClick={onNodeClick}
+            onPaneClick={() => setSelectedTable(null)}
             fitView
             minZoom={0.1}
           >
