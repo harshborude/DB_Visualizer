@@ -1,15 +1,21 @@
 import type { AnalyzedTableData } from '../../utils/graphAnalytics';
 import { type ActiveTab, TABS } from '../../types/ui';
 import { OverviewTab } from './tabs/OverviewTab';
+import { ColumnsTab } from './tabs/ColumnsTab';
+import { KeysTab } from './tabs/KeysTab';
+import { RelationshipsTab } from './tabs/RelationshipsTab';
+import { HealthTab } from './tabs/HealthTab';
+import { ImpactTab } from './tabs/ImpactTab';
 
 interface DetailsPanelShellProps {
+  tables: AnalyzedTableData[];
   selectedTable: AnalyzedTableData;
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onClose: () => void;
 }
 
-export function DetailsPanelShell({ selectedTable, activeTab, onTabChange, onClose }: DetailsPanelShellProps) {
+export function DetailsPanelShell({ tables, selectedTable, activeTab, onTabChange, onClose }: DetailsPanelShellProps) {
   return (
     <div style={{
       position: 'absolute',
@@ -27,7 +33,7 @@ export function DetailsPanelShell({ selectedTable, activeTab, onTabChange, onClo
       flexDirection: 'column',
       overflowY: 'auto'
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexShrink: 0 }}>
         <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#f8fafc', fontWeight: 600 }}>{selectedTable.name}</h2>
         <button
           onClick={onClose}
@@ -46,7 +52,7 @@ export function DetailsPanelShell({ selectedTable, activeTab, onTabChange, onClo
       </div>
 
       {/* TAB NAVIGATION */}
-      <div style={{ display: 'flex', gap: '1.5rem', overflowX: 'auto', marginBottom: '2rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', gap: '1.5rem', overflowX: 'auto', marginBottom: '2rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem', flexShrink: 0 }}>
         {TABS.map(tab => (
           <button
             key={tab.id}
@@ -71,8 +77,13 @@ export function DetailsPanelShell({ selectedTable, activeTab, onTabChange, onClo
 
       {/* TAB CONTENT */}
       {activeTab === 'overview' && <OverviewTab selectedTable={selectedTable} />}
+      {activeTab === 'columns' && <ColumnsTab selectedTable={selectedTable} />}
+      {activeTab === 'keys' && <KeysTab selectedTable={selectedTable} />}
+      {activeTab === 'relationships' && <RelationshipsTab selectedTable={selectedTable} tables={tables} />}
+      {activeTab === 'health' && <HealthTab selectedTable={selectedTable} />}
+      {activeTab === 'impact' && <ImpactTab selectedTable={selectedTable} />}
 
-      {activeTab !== 'overview' && (
+      {activeTab !== 'overview' && activeTab !== 'columns' && activeTab !== 'keys' && activeTab !== 'relationships' && activeTab !== 'health' && activeTab !== 'impact' && (
         <div style={{ padding: '3rem 2rem', textAlign: 'center', color: '#94a3b8', backgroundColor: '#1e293b', borderRadius: '12px', border: '1px dashed #475569' }}>
           <h3 style={{ color: '#f8fafc', marginBottom: '1rem', fontSize: '1.25rem' }}>{TABS.find(t => t.id === activeTab)?.label} Panel</h3>
           <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.5 }}>

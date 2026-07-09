@@ -334,6 +334,7 @@ function App() {
 
           {selectedTable && (
             <DetailsPanelShell 
+              tables={tables}
               selectedTable={selectedTable}
               activeTab={activeTab}
               onTabChange={setActiveTab}
