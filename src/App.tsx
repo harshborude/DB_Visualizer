@@ -400,7 +400,7 @@ function App() {
             fitView
             minZoom={0.1}
           >
-            <Background color="#1e293b" gap={24} size={2} />
+            <Background color="rgba(255, 255, 255, 0.2)" gap={24} size={2} />
             <Controls style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', fill: '#94a3b8' }} />
           </ReactFlow>
 
