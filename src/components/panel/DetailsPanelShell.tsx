@@ -15,9 +15,11 @@ interface DetailsPanelShellProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onClose: () => void;
+  isIsolatedMode?: boolean;
+  onToggleIsolation?: () => void;
 }
 
-export function DetailsPanelShell({ tables, selectedTable, activeTab, onTabChange, onClose }: DetailsPanelShellProps) {
+export function DetailsPanelShell({ tables, selectedTable, activeTab, onTabChange, onClose, isIsolatedMode, onToggleIsolation }: DetailsPanelShellProps) {
   return (
     <div style={{
       position: 'absolute',
@@ -37,20 +39,64 @@ export function DetailsPanelShell({ tables, selectedTable, activeTab, onTabChang
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexShrink: 0 }}>
         <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#f8fafc', fontWeight: 600 }}>{selectedTable.name}</h2>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.5rem',
-            borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease'
-          }}
-          onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#1e293b'; e.currentTarget.style.color = '#f8fafc'; }}
-          onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94a3b8'; }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={onToggleIsolation}
+            title={isIsolatedMode ? "Show all tables" : "Isolate dependent/referenced tables"}
+            style={{
+              background: isIsolatedMode ? 'rgba(56, 189, 248, 0.1)' : 'transparent',
+              border: '1px solid',
+              borderColor: isIsolatedMode ? '#38bdf8' : '#334155',
+              color: isIsolatedMode ? '#38bdf8' : '#cbd5e1',
+              cursor: 'pointer',
+              padding: '0.4rem 0.75rem',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              fontSize: '0.85rem',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+              transition: 'all 0.2s ease',
+              boxShadow: isIsolatedMode ? '0 0 10px rgba(56, 189, 248, 0.1)' : 'none'
+            }}
+            onMouseOver={(e) => { 
+              if (!isIsolatedMode) {
+                e.currentTarget.style.backgroundColor = '#1e293b'; 
+                e.currentTarget.style.borderColor = '#475569';
+                e.currentTarget.style.color = '#f8fafc'; 
+              }
+            }}
+            onMouseOut={(e) => { 
+              if (!isIsolatedMode) {
+                e.currentTarget.style.backgroundColor = 'transparent'; 
+                e.currentTarget.style.borderColor = '#334155';
+                e.currentTarget.style.color = '#cbd5e1'; 
+              }
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <span>{isIsolatedMode ? "Show All" : "Isolate"}</span>
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.5rem',
+              borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#1e293b'; e.currentTarget.style.color = '#f8fafc'; }}
+            onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94a3b8'; }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* TAB NAVIGATION */}

@@ -27,16 +27,17 @@ function App() {
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   })
-  
+
   const [nodes, setNodes] = useNodesState<Node[]>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([])
-  
+
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null)
-  
+
   const [selectedTable, setSelectedTable] = useState<AnalyzedTableData | null>(null)
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview')
-  
+  const [isIsolatedMode, setIsIsolatedMode] = useState(false)
+
   const [error, setError] = useState<string | null>(null)
   const [rfInstance, setRfInstance] = useState<any>(null);
   const [isParsing, setIsParsing] = useState(false)
@@ -55,7 +56,7 @@ function App() {
 
   useEffect(() => {
     if (nodes.length > 0) {
-      const positions: Record<string, {x: number, y: number}> = {};
+      const positions: Record<string, { x: number, y: number }> = {};
       nodes.forEach(n => { positions[n.id] = n.position; });
       localStorage.setItem('erd-positions', JSON.stringify(positions));
     }
@@ -69,10 +70,10 @@ function App() {
     }
 
     const savedPositionsStr = localStorage.getItem('erd-positions');
-    let savedPositions: Record<string, {x: number, y: number}> | null = null;
+    let savedPositions: Record<string, { x: number, y: number }> | null = null;
     try {
       if (savedPositionsStr) savedPositions = JSON.parse(savedPositionsStr);
-    } catch {}
+    } catch { }
 
     const newNodes: Node[] = tables.map((table, i) => ({
       id: table.name,
@@ -113,7 +114,7 @@ function App() {
   const processFile = async (file: File) => {
     setError(null)
     setIsParsing(true)
-    
+
     try {
       const text = await file.text()
       const parsedTables = await processSchema(text)
@@ -129,11 +130,11 @@ function App() {
       setIsParsing(false)
     }
   }
-  
+
   const onNodeMouseEnter = (_: React.MouseEvent, node: Node) => {
     setHoveredNodeId(node.id);
   }
-  
+
   const onNodeMouseLeave = () => {
     setHoveredNodeId(null);
   }
@@ -149,13 +150,14 @@ function App() {
   const onNodeClick = (_: React.MouseEvent, node: Node) => {
     setSelectedTable(node.data.table);
     setActiveTab('overview');
+    setIsIsolatedMode(false);
   }
 
   // Derive styled nodes and edges based on hover and selection state
   const styledNodes = useMemo(() => {
     const activeNodeId = hoveredNodeId || selectedTable?.name || null;
     if (!activeNodeId && !hoveredEdgeId) return nodes.map(n => ({ ...n, data: { ...n.data, isFaded: false, isHovered: false, isConnected: false } }));
-    
+
     const activeEdge = edges.find(e => e.id === hoveredEdgeId);
 
     return nodes.map(n => {
@@ -171,7 +173,7 @@ function App() {
         isConnected = n.id === activeEdge.source || n.id === activeEdge.target;
         isFaded = !isConnected;
       }
-      
+
       return {
         ...n,
         data: {
@@ -187,15 +189,15 @@ function App() {
   const styledEdges = useMemo(() => {
     const activeNodeId = hoveredNodeId || selectedTable?.name || null;
     if (!activeNodeId && !hoveredEdgeId) return edges.map(e => ({
-      ...e, 
+      ...e,
       style: { ...e.style, opacity: 1, stroke: '#94a3b8', strokeWidth: 3, zIndex: 0 },
       animated: false,
       markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' }
     }));
-    
+
     return edges.map(e => {
       let isConnected = false;
-      
+
       if (activeNodeId) {
         isConnected = e.source === activeNodeId || e.target === activeNodeId;
       } else if (hoveredEdgeId) {
@@ -206,7 +208,7 @@ function App() {
         ...e,
         style: {
           ...e.style,
-          stroke: isConnected ? '#38bdf8' : '#475569', 
+          stroke: isConnected ? '#38bdf8' : '#475569',
           strokeWidth: isConnected ? 4 : 3,
           opacity: isConnected ? 1 : 0.3,
           zIndex: isConnected ? 10 : 0,
@@ -221,47 +223,100 @@ function App() {
     });
   }, [edges, hoveredNodeId, hoveredEdgeId, selectedTable]);
 
+  const { visibleNodes, visibleEdges } = useMemo(() => {
+    if (!isIsolatedMode || !selectedTable) {
+      return { visibleNodes: styledNodes, visibleEdges: styledEdges };
+    }
+
+    const anchorNodeId = selectedTable.name;
+    const connectedNodeIds = new Set<string>([anchorNodeId]);
+
+    edges.forEach(e => {
+      if (e.source === anchorNodeId) connectedNodeIds.add(e.target);
+      if (e.target === anchorNodeId) connectedNodeIds.add(e.source);
+    });
+
+    const isolatedNodes = styledNodes.filter(n => connectedNodeIds.has(n.id));
+    const isolatedEdges = styledEdges.filter(e => connectedNodeIds.has(e.source) && connectedNodeIds.has(e.target));
+
+    // Auto-layout just these nodes
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(isolatedNodes, isolatedEdges, 'LR');
+
+    return { visibleNodes: layoutedNodes, visibleEdges: layoutedEdges };
+  }, [styledNodes, styledEdges, isIsolatedMode, selectedTable, edges]);
+
+  const previousSelectedTableRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (selectedTable) {
+      previousSelectedTableRef.current = selectedTable.name;
+    }
+  }, [selectedTable]);
+
+  useEffect(() => {
+    if (isIsolatedMode && rfInstance) {
+      setTimeout(() => {
+        rfInstance.fitView({ padding: 0.2, duration: 800 });
+      }, 50); // slight delay to allow nodes to re-render
+    } else if (!isIsolatedMode && rfInstance) {
+      const targetTableId = selectedTable?.name || previousSelectedTableRef.current;
+      if (targetTableId) {
+        setTimeout(() => {
+          const node = rfInstance.getNode(targetTableId);
+          if (node) {
+            const width = node.width ?? 320;
+            const height = node.height ?? 300;
+            const x = node.position.x + width / 2;
+            const y = node.position.y + height / 2;
+            rfInstance.setCenter(x, y, { zoom: 0.3, duration: 800 });
+          }
+        }, 50);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isIsolatedMode, rfInstance]);
+
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((currentNodes) => {
       let nextNodes = applyNodeChanges(changes, currentNodes);
-      
+
       const positionChanges = changes.filter((c: any) => c.type === 'position' && c.dragging);
-      
+
       if (positionChanges.length > 0) {
         positionChanges.forEach((change: any) => {
           const a = nextNodes.find(n => n.id === change.id);
           if (!a) return;
-          
+
           const wA = a.width ?? 320;
           const hA = a.height ?? 300;
           const cxA = a.position.x + wA / 2;
           const cyA = a.position.y + hA / 2;
-          
+
           nextNodes = nextNodes.map(b => {
             if (a.id === b.id) return b;
-            
+
             const wB = b.width ?? 320;
             const hB = b.height ?? 300;
-            
+
             const isColliding = (
               a.position.x < b.position.x + wB &&
               a.position.x + wA > b.position.x &&
               a.position.y < b.position.y + hB &&
               a.position.y + hA > b.position.y
             );
-            
+
             if (isColliding) {
               const cxB = b.position.x + wB / 2;
               const cyB = b.position.y + hB / 2;
-              
+
               let dx = cxB - cxA;
               let dy = cyB - cyA;
-              
+
               if (dx === 0 && dy === 0) {
                 dx = Math.random() * 10 - 5;
                 dy = Math.random() * 10 - 5;
               }
-              
+
               // Apply heavily damped elastic push
               return {
                 ...b,
@@ -275,7 +330,7 @@ function App() {
           });
         });
       }
-      
+
       return nextNodes;
     });
   }, [setNodes]);
@@ -283,13 +338,13 @@ function App() {
   if (tables.length > 0) {
     return (
       <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#0f172a' }}>
-        <div style={{ 
-          padding: '1rem 2rem', 
-          backgroundColor: 'rgba(30, 41, 59, 0.8)', 
+        <div style={{
+          padding: '1rem 2rem',
+          backgroundColor: 'rgba(30, 41, 59, 0.8)',
           backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid #1e293b', 
-          display: 'flex', 
-          justifyContent: 'flex-end', 
+          borderBottom: '1px solid #1e293b',
+          display: 'flex',
+          justifyContent: 'flex-end',
           alignItems: 'center',
           position: 'absolute',
           top: 0,
@@ -297,15 +352,15 @@ function App() {
           right: 0,
           zIndex: 50
         }}>
-          <h2 
+          <h2
             onClick={() => setTables([])}
-            style={{ 
-              margin: 0, 
-              fontSize: '1.25rem', 
-              fontWeight: 600, 
-              color: '#f8fafc', 
-              display: 'flex', 
-              alignItems: 'center', 
+            style={{
+              margin: 0,
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: '#f8fafc',
+              display: 'flex',
+              alignItems: 'center',
               gap: '0.5rem',
               cursor: 'pointer',
               transition: 'opacity 0.2s ease',
@@ -319,6 +374,37 @@ function App() {
             <span style={{ color: '#38bdf8' }}>ERDiagram</span> Canvas
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {tables.length > 0 && (
+              <button
+                onClick={() => {
+                  const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, 'LR');
+                  setNodes(layoutedNodes);
+                  setEdges(layoutedEdges);
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  cursor: 'pointer',
+                  backgroundColor: 'transparent',
+                  border: '1px solid #334155',
+                  color: '#cbd5e1',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s ease',
+                  fontWeight: 500
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1e293b';
+                  e.currentTarget.style.borderColor = '#475569';
+                  e.currentTarget.style.color = '#f8fafc';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = '#334155';
+                  e.currentTarget.style.color = '#cbd5e1';
+                }}
+              >
+                Auto Layout
+              </button>
+            )}
             {isParsing && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#38bdf8', fontSize: '0.9rem' }}>
                 <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -334,19 +420,19 @@ function App() {
                 <span>Parsing...</span>
               </div>
             )}
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileChange} 
-              accept=".sql" 
-              style={{ display: 'none' }} 
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".sql"
+              style={{ display: 'none' }}
             />
-            <button 
-              onClick={() => fileInputRef.current?.click()} 
+            <button
+              onClick={() => fileInputRef.current?.click()}
               disabled={isParsing}
-              style={{ 
-                padding: '0.5rem 1rem', 
-                cursor: isParsing ? 'not-allowed' : 'pointer', 
+              style={{
+                padding: '0.5rem 1rem',
+                cursor: isParsing ? 'not-allowed' : 'pointer',
                 backgroundColor: 'transparent',
                 border: '1px solid #334155',
                 color: '#cbd5e1',
@@ -372,7 +458,7 @@ function App() {
             </button>
           </div>
         </div>
-        
+
         {/* Error banner if upload failed from canvas */}
         {error && (
           <div style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-50%)', zIndex: 60, color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '0.75rem 1.5rem', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
@@ -384,9 +470,9 @@ function App() {
         )}
 
         <div style={{ flex: 1, backgroundColor: '#0f172a', position: 'relative' }}>
-          <ReactFlow 
-            nodes={styledNodes} 
-            edges={styledEdges} 
+          <ReactFlow
+            nodes={visibleNodes}
+            edges={visibleEdges}
             onNodesChange={handleNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
@@ -395,7 +481,10 @@ function App() {
             onEdgeMouseEnter={onEdgeMouseEnter}
             onEdgeMouseLeave={onEdgeMouseLeave}
             onNodeClick={onNodeClick}
-            onPaneClick={() => setSelectedTable(null)}
+            onPaneClick={() => {
+              setSelectedTable(null);
+              setIsIsolatedMode(false);
+            }}
             onInit={setRfInstance}
             fitView
             minZoom={0.1}
@@ -405,12 +494,17 @@ function App() {
           </ReactFlow>
 
           {selectedTable && (
-            <DetailsPanelShell 
+            <DetailsPanelShell
               tables={tables}
               selectedTable={selectedTable}
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              onClose={() => setSelectedTable(null)}
+              onClose={() => {
+                setSelectedTable(null);
+                setIsIsolatedMode(false);
+              }}
+              isIsolatedMode={isIsolatedMode}
+              onToggleIsolation={() => setIsIsolatedMode(prev => !prev)}
             />
           )}
 
@@ -420,7 +514,8 @@ function App() {
             onSelectTable={(table) => {
               setSelectedTable(table);
               setActiveTab('overview');
-              
+              setIsIsolatedMode(false);
+
               if (rfInstance) {
                 const node = nodes.find(n => n.id === table.name);
                 if (node) {
@@ -440,7 +535,7 @@ function App() {
   }
 
   return (
-    <Dropzone 
+    <Dropzone
       onFileAccepted={processFile}
       isParsing={isParsing}
       error={error}

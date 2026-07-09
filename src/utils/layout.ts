@@ -8,9 +8,9 @@ export const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'T
   // Configure the layout algorithm
   dagreGraph.setGraph({ 
     rankdir: direction, // 'LR' (left-to-right)
-    nodesep: 150, // Vertical spacing between nodes in the same column
-    ranksep: 400, // Horizontal spacing between different columns
-    edgesep: 50
+    nodesep: 300, // Vertical spacing between nodes in the same column
+    ranksep: 500, // Horizontal spacing between different columns
+    edgesep: 100
   });
 
   nodes.forEach((node) => {
