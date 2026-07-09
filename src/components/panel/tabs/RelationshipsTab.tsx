@@ -40,7 +40,6 @@ export function RelationshipsTab({ selectedTable, tables }: RelationshipsTabProp
       {/* Tables that depend on this table */}
       <div>
         <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></svg>
           Incoming Dependencies (Tables depending on this)
         </h4>
         
@@ -65,7 +64,6 @@ export function RelationshipsTab({ selectedTable, tables }: RelationshipsTabProp
       {/* Tables that this table depends on */}
       <div>
         <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: '#0ea5e9', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5"></path><path d="m5 12 7-7 7 7"></path></svg>
           Outgoing Dependencies (Tables this relies on)
         </h4>
         

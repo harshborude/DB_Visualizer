@@ -10,7 +10,6 @@ export function OverviewTab({ selectedTable }: OverviewTabProps) {
       {/* GRAPH ANALYTICS SECTION */}
       <div style={{ marginBottom: '2rem', backgroundColor: '#1e293b', padding: '1.25rem', borderRadius: '12px', border: '1px solid #334155' }}>
         <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.8rem', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 15h18v-2H3v2z"></path><path d="M3 19h18v-2H3v2z"></path></svg>
           Graph Inferences
         </h4>
 
