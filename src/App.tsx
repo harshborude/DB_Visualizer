@@ -18,8 +18,6 @@ import type { ActiveTab } from './types/ui'
 
 function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showImplicit, setShowImplicit] = useState(false);
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -28,7 +26,7 @@ function App() {
   };
   const [tables, setTables] = useState<AnalyzedTableData[]>(() => {
     try {
-      const saved = localStorage.getItem('erd-tables');
+      const saved = sessionStorage.getItem('erd-tables');
       if (saved) {
         const parsed = JSON.parse(saved);
         return parsed.map((t: any) => ({
@@ -59,13 +57,13 @@ function App() {
 
   const nodeTypes = useMemo(() => ({ table: TableNode }), []);
 
-  // Save tables and nodes to localStorage
+  // Save tables and nodes to sessionStorage
   useEffect(() => {
     if (tables.length > 0) {
-      localStorage.setItem('erd-tables', JSON.stringify(tables));
+      sessionStorage.setItem('erd-tables', JSON.stringify(tables));
     } else {
-      localStorage.removeItem('erd-tables');
-      localStorage.removeItem('erd-positions');
+      sessionStorage.removeItem('erd-tables');
+      sessionStorage.removeItem('erd-positions');
     }
   }, [tables]);
 
@@ -73,7 +71,7 @@ function App() {
     if (nodes.length > 0) {
       const positions: Record<string, { x: number, y: number }> = {};
       nodes.forEach(n => { positions[n.id] = n.position; });
-      localStorage.setItem('erd-positions', JSON.stringify(positions));
+      sessionStorage.setItem('erd-positions', JSON.stringify(positions));
     }
   }, [nodes]);
 
@@ -84,7 +82,7 @@ function App() {
       return;
     }
 
-    const savedPositionsStr = localStorage.getItem('erd-positions');
+    const savedPositionsStr = sessionStorage.getItem('erd-positions');
     let savedPositions: Record<string, { x: number, y: number }> | null = null;
     try {
       if (savedPositionsStr) savedPositions = JSON.parse(savedPositionsStr);
@@ -121,18 +119,6 @@ function App() {
       })
     })
 
-    console.group("Edge Generation Debug");
-    console.log("All generated edges (before layout/filtering):");
-    console.table(
-      newEdges.map(e => ({
-        source: e.source,
-        target: e.target,
-        label: e.label,
-        isImplicit: e.data?.isImplicit
-      }))
-    );
-    console.groupEnd();
-
     if (!savedPositions || Object.keys(savedPositions).length === 0) {
       // First time layout
       const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(newNodes, newEdges, 'LR');
@@ -154,7 +140,8 @@ function App() {
       const parsedTables = await processSchema(text)
       const analyzedTables = analyzeSchema(parsedTables)
       // Clear positions for new file
-      localStorage.removeItem('erd-positions');
+      sessionStorage.removeItem('erd-positions');
+      sessionStorage.removeItem('erd-tables');
       setTables(analyzedTables)
       setSelectedTable(null)
       setPathResult(null)
@@ -290,42 +277,10 @@ function App() {
       }
     }
 
-    if (showImplicit) {
-      const implicitNodeIds = new Set<string>();
-      const implicitEdges = edges.filter(e => (e.data as any)?.isImplicit);
-      implicitEdges.forEach(e => {
-        implicitNodeIds.add(e.source);
-        implicitNodeIds.add(e.target);
-      });
-
-      const filteredNodes = styledNodes
-        .filter(n => implicitNodeIds.has(n.id))
-        .map(n => ({
-          ...n,
-          data: { ...n.data, isHovered: true, isConnected: true, isFaded: false, isImplicitView: true }
-        }));
-
-      const filteredEdges = styledEdges
-        .filter(e => (e.data as any)?.isImplicit)
-        .map(e => ({
-          ...e,
-          style: { ...e.style, stroke: '#f8fafc', strokeWidth: 4, opacity: 1, strokeDasharray: '5,5', zIndex: 10 },
-          animated: true,
-          markerEnd: { type: MarkerType.ArrowClosed, color: '#f8fafc' }
-        }));
-
-      try {
-        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(filteredNodes, filteredEdges, 'LR');
-        return { visibleNodes: layoutedNodes, visibleEdges: layoutedEdges };
-      } catch (err) {
-        return { visibleNodes: filteredNodes, visibleEdges: filteredEdges };
-      }
-    }
-
     if (!isIsolatedMode || !selectedTable) {
       return { 
         visibleNodes: styledNodes, 
-        visibleEdges: styledEdges.filter(e => !(e.data as any)?.isImplicit) 
+        visibleEdges: styledEdges
       };
     }
 
@@ -338,13 +293,13 @@ function App() {
     });
 
     const isolatedNodes = styledNodes.filter(n => connectedNodeIds.has(n.id));
-    const isolatedEdges = styledEdges.filter(e => !(e.data as any)?.isImplicit && connectedNodeIds.has(e.source) && connectedNodeIds.has(e.target));
+    const isolatedEdges = styledEdges.filter(e => connectedNodeIds.has(e.source) && connectedNodeIds.has(e.target));
 
     // Auto-layout just these nodes
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(isolatedNodes, isolatedEdges, 'LR');
 
     return { visibleNodes: layoutedNodes, visibleEdges: layoutedEdges };
-  }, [styledNodes, styledEdges, isIsolatedMode, selectedTable, edges, pathResult, showImplicit]);
+  }, [styledNodes, styledEdges, isIsolatedMode, selectedTable, edges, pathResult]);
 
   useEffect(() => {
     if (rfInstance) {
@@ -353,7 +308,7 @@ function App() {
       }, 50);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isIsolatedMode, pathResult, rfInstance, showImplicit]);
+  }, [isIsolatedMode, pathResult, rfInstance]);
 
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((currentNodes) => {
@@ -475,30 +430,6 @@ function App() {
               </button>
             )}
             
-            {tables.length > 0 && (
-              <button
-                onClick={() => {
-                  setShowImplicit(!showImplicit);
-                  setIsIsolatedMode(false);
-                  setPathResult(null);
-                }}
-                style={{
-                  padding: '0.4rem 1rem',
-                  cursor: 'pointer',
-                  backgroundColor: showImplicit ? '#0f172a' : 'transparent',
-                  border: '1px solid',
-                  borderColor: showImplicit ? '#cbd5e1' : '#334155',
-                  color: showImplicit ? '#f8fafc' : '#cbd5e1',
-                  borderRadius: '6px',
-                  transition: 'all 0.2s ease',
-                  fontWeight: 600,
-                  fontSize: '0.9rem'
-                }}
-              >
-                {showImplicit ? 'Hide Implicit Relationships' : 'Show Implicit Relationships'}
-              </button>
-            )}
-
             {tables.length > 0 && (
               <button
                 onClick={() => {
