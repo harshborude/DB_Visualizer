@@ -143,7 +143,7 @@ export function PathfinderModal({ tables, onClose, onFindPath }: PathfinderModal
                 onChange={() => setStrategy('indexed')}
                 style={{ accentColor: '#10b981' }}
               />
-              ⚡ Optimized (Prefer Indexes)
+              Optimized (Prefer Indexes)
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: strategy === 'shortest' ? '#3b82f6' : '#94a3b8', cursor: 'pointer', transition: 'color 0.2s', fontSize: '0.9rem' }}>
               <input 
@@ -153,7 +153,7 @@ export function PathfinderModal({ tables, onClose, onFindPath }: PathfinderModal
                 onChange={() => setStrategy('shortest')}
                 style={{ accentColor: '#3b82f6' }}
               />
-              📏 Shortest Path (Fewer Joins)
+              Shortest Path (Fewer Joins)
             </label>
           </div>
         </div>
