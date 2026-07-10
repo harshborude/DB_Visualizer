@@ -15,7 +15,8 @@ import { PathfinderSQLPanel } from './components/panel/PathfinderSQLPanel'
 import { findShortestJoinPath, type PathResult } from './utils/pathfinder'
 import { calculateRowSize } from './utils/tableWeight'
 import type { ActiveTab } from './types/ui'
-
+import type { QueryBuilderState } from './utils/queryBuilder'
+import { QueryBuilderPanel } from './components/panel/QueryBuilderPanel';
 function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,6 +55,64 @@ function App() {
 
   const [isPathfinderModalOpen, setIsPathfinderModalOpen] = useState(false)
   const [pathResult, setPathResult] = useState<PathResult | null>(null)
+
+  // Query Builder State
+  const [isQueryBuilderMode, setIsQueryBuilderMode] = useState(false)
+  const [queryBuilderState, setQueryBuilderState] = useState<QueryBuilderState>({
+    tables: [],
+    columns: [],
+    filters: [],
+    sorts: [],
+    manualJoins: []
+  })
+
+  const handleToggleColumn = useCallback((tableName: string, columnName: string) => {
+    setQueryBuilderState(prev => {
+      const isSelected = prev.columns.some(c => c.tableName === tableName && c.columnName === columnName)
+      let newColumns = prev.columns
+      if (isSelected) {
+        newColumns = prev.columns.filter(c => !(c.tableName === tableName && c.columnName === columnName))
+      } else {
+        newColumns = [...prev.columns, { tableName, columnName }]
+      }
+      
+      const newTables = Array.from(new Set([
+        ...newColumns.map(c => c.tableName),
+        ...prev.filters.map(f => f.tableName),
+        ...prev.sorts.map(s => s.tableName)
+      ]))
+
+      return {
+        ...prev,
+        columns: newColumns,
+        tables: newTables
+      }
+    })
+  }, [])
+
+  const handleToggleTable = useCallback((tableName: string) => {
+    setQueryBuilderState(prev => {
+      const isSelected = prev.tables.includes(tableName)
+      let newTables = prev.tables
+      let newColumns = prev.columns
+      
+      if (isSelected) {
+        // Remove table and all its columns
+        newTables = prev.tables.filter(t => t !== tableName)
+        newColumns = prev.columns.filter(c => c.tableName !== tableName)
+      } else {
+        // Add table
+        newTables = [...prev.tables, tableName]
+      }
+      
+      // If table is removed, should we remove its filters/sorts? For now keep simple
+      return {
+        ...prev,
+        tables: newTables,
+        columns: newColumns
+      }
+    })
+  }, [])
 
   const nodeTypes = useMemo(() => ({ table: TableNode }), []);
 
@@ -176,10 +235,20 @@ function App() {
     setPathResult(null);
   }
 
-  // Derive styled nodes and edges based on hover and selection state
   const styledNodes = useMemo(() => {
     const activeNodeId = hoveredNodeId || selectedTable?.name || null;
-    if (!activeNodeId && !hoveredEdgeId) return nodes.map(n => ({ ...n, data: { ...n.data, isFaded: false, isHovered: false, isConnected: false } }));
+    
+    // Inject common query builder props
+    const injectQbProps = (n: Node) => ({
+      ...n.data,
+      isQueryBuilderMode,
+      selectedColumns: queryBuilderState.columns.filter(c => c.tableName === n.id).map(c => c.columnName),
+      isTableSelected: queryBuilderState.tables.includes(n.id),
+      onToggleColumn: handleToggleColumn,
+      onToggleTable: handleToggleTable
+    });
+
+    if (!activeNodeId && !hoveredEdgeId) return nodes.map(n => ({ ...n, data: { ...injectQbProps(n), isFaded: false, isHovered: false, isConnected: false } }));
 
     const activeEdge = edges.find(e => e.id === hoveredEdgeId);
 
@@ -200,14 +269,14 @@ function App() {
       return {
         ...n,
         data: {
-          ...n.data,
+          ...injectQbProps(n),
           isHovered: n.id === hoveredNodeId || n.id === selectedTable?.name,
           isConnected,
           isFaded
         }
       }
     });
-  }, [nodes, edges, hoveredNodeId, hoveredEdgeId, selectedTable]);
+  }, [nodes, edges, hoveredNodeId, hoveredEdgeId, selectedTable, isQueryBuilderMode, queryBuilderState.columns, queryBuilderState.tables, handleToggleColumn, handleToggleTable]);
 
   const styledEdges = useMemo(() => {
     const activeNodeId = hoveredNodeId || selectedTable?.name || null;
@@ -438,6 +507,48 @@ function App() {
             {tables.length > 0 && (
               <button
                 onClick={() => {
+                  setIsQueryBuilderMode(prev => !prev);
+                  if (isQueryBuilderMode) {
+                    // Exiting mode, clear state
+                    setQueryBuilderState({ tables: [], columns: [], filters: [], sorts: [], manualJoins: [] });
+                  } else {
+                    // Entering mode
+                    setActiveTab('overview'); // reset tab
+                    setSelectedTable(null);
+                  }
+                }}
+                style={{
+                  padding: '0.4rem 1rem',
+                  cursor: 'pointer',
+                  backgroundColor: isQueryBuilderMode ? '#0ea5e9' : 'transparent',
+                  border: '1px solid #0ea5e9',
+                  color: isQueryBuilderMode ? '#fff' : '#0ea5e9',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s ease',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.9rem'
+                }}
+                onMouseOver={(e) => {
+                  if (!isQueryBuilderMode) {
+                    e.currentTarget.style.backgroundColor = 'rgba(14, 165, 233, 0.1)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!isQueryBuilderMode) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                {isQueryBuilderMode ? 'Exit Query Builder' : 'Query Builder'}
+              </button>
+            )}
+            {tables.length > 0 && (
+              <button
+                onClick={() => {
                   const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, 'LR');
                   setNodes(layoutedNodes);
                   setEdges(layoutedEdges);
@@ -556,7 +667,7 @@ function App() {
             <Controls style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', fill: '#94a3b8' }} />
           </ReactFlow>
 
-          {selectedTable && (
+          {!isQueryBuilderMode && selectedTable && (
             <DetailsPanelShell
               tables={tables}
               selectedTable={selectedTable}
@@ -568,6 +679,15 @@ function App() {
               }}
               isIsolatedMode={isIsolatedMode}
               onToggleIsolation={() => setIsIsolatedMode(prev => !prev)}
+            />
+          )}
+
+          {isQueryBuilderMode && (
+            <QueryBuilderPanel
+              schema={tables}
+              state={queryBuilderState}
+              setState={setQueryBuilderState}
+              onClose={() => setIsQueryBuilderMode(false)}
             />
           )}
 

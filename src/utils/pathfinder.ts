@@ -19,7 +19,7 @@ export interface PathResult {
  * Builds an undirected graph of tables based on foreign key relationships.
  * Needed because a JOIN can go either direction (A -> B or B -> A).
  */
-function buildJoinGraph(tables: AnalyzedTableData[]): Map<string, JoinEdge[]> {
+export function buildJoinGraph(tables: AnalyzedTableData[]): Map<string, JoinEdge[]> {
   const graph = new Map<string, JoinEdge[]>();
 
   tables.forEach(t => graph.set(t.name, []));

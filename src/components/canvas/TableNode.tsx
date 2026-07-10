@@ -1,8 +1,8 @@
 import { Handle, Position } from 'reactflow';
 import type { TableData } from '../../types/schema';
 
-export function TableNode({ data }: { data: { table: TableData, isHovered?: boolean, isConnected?: boolean, isFaded?: boolean, isImplicitView?: boolean } }) {
-  const { table, isHovered, isConnected, isFaded, isImplicitView } = data;
+export function TableNode({ data }: { data: { table: TableData, isHovered?: boolean, isConnected?: boolean, isFaded?: boolean, isImplicitView?: boolean, isQueryBuilderMode?: boolean, selectedColumns?: string[], isTableSelected?: boolean, onToggleColumn?: (t: string, c: string) => void, onToggleTable?: (t: string) => void } }) {
+  const { table, isHovered, isConnected, isFaded, isImplicitView, isQueryBuilderMode, selectedColumns = [], isTableSelected = false, onToggleColumn, onToggleTable } = data;
   
   let glowStyle = '0 4px 15px rgba(0,0,0,0.5)'; // default dark shadow
   let borderColor = '#475569'; // lighter slate-600 border so it stands out
@@ -32,14 +32,32 @@ export function TableNode({ data }: { data: { table: TableData, isHovered?: bool
     }}>
       <Handle type="target" position={Position.Left} style={{ background: '#38bdf8', width: '8px', height: '8px', border: 'none' }} />
       
-      <h3 style={{ margin: '0 0 1.25rem 0', paddingBottom: '1rem', color: '#f1f5f9', fontSize: '1.4rem', letterSpacing: '0.025em', textAlign: 'center', borderBottom: '2px dotted #334155' }}>{table.name}</h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 0 1.25rem 0', paddingBottom: '1rem', borderBottom: '2px dotted #334155' }}>
+        {isQueryBuilderMode && (
+          <input 
+            type="checkbox" 
+            checked={isTableSelected}
+            onChange={() => onToggleTable?.(table.name)}
+            style={{ marginRight: '0.75rem', transform: 'scale(1.2)', cursor: 'pointer', accentColor: '#38bdf8' }}
+          />
+        )}
+        <h3 style={{ margin: 0, color: '#f1f5f9', fontSize: '1.4rem', letterSpacing: '0.025em', textAlign: 'center' }}>{table.name}</h3>
+      </div>
       
       <ul style={{ paddingLeft: '0', margin: '0', listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {table.columns.map(col => {
           const isPrimaryKey = table.primaryKeys?.includes(col.name)
           return (
             <li key={col.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                {isQueryBuilderMode && (
+                  <input 
+                    type="checkbox" 
+                    checked={selectedColumns.includes(col.name)}
+                    onChange={() => onToggleColumn?.(table.name, col.name)}
+                    style={{ marginRight: '0.5rem', cursor: 'pointer', accentColor: '#38bdf8' }}
+                  />
+                )}
                 <strong style={{ color: '#f8fafc', fontWeight: '500' }}>{col.name}</strong> 
                 <span style={{ color: '#94a3b8', marginLeft: '0.5rem', fontSize: '0.85em', fontFamily: 'monospace' }}>{col.type}</span>
               </div>
