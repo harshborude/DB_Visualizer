@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
 import type { AnalyzedTableData } from '../../utils/graphAnalytics';
+import type { PathfinderStrategy } from '../../utils/pathfinder';
 
 interface PathfinderModalProps {
   tables: AnalyzedTableData[];
   onClose: () => void;
-  onFindPath: (sourceTable: string, targetTable: string) => void;
+  onFindPath: (sourceTable: string, targetTable: string, strategy: PathfinderStrategy) => void;
 }
 
 export function PathfinderModal({ tables, onClose, onFindPath }: PathfinderModalProps) {
@@ -12,6 +13,7 @@ export function PathfinderModal({ tables, onClose, onFindPath }: PathfinderModal
   const [target, setTarget] = useState('');
   const [sourceFocused, setSourceFocused] = useState(false);
   const [targetFocused, setTargetFocused] = useState(false);
+  const [strategy, setStrategy] = useState<PathfinderStrategy>('indexed');
 
   const tableNames = useMemo(() => tables.map(t => t.name), [tables]);
 
@@ -25,7 +27,7 @@ export function PathfinderModal({ tables, onClose, onFindPath }: PathfinderModal
 
   const handleFind = () => {
     if (source && target) {
-      onFindPath(source, target);
+      onFindPath(source, target, strategy);
       onClose();
     }
   };
@@ -128,6 +130,32 @@ export function PathfinderModal({ tables, onClose, onFindPath }: PathfinderModal
               ))}
             </ul>
           )}
+        </div>
+
+        <div style={{ marginBottom: '2rem' }}>
+          <label style={{ display: 'block', color: '#cbd5e1', fontSize: '0.85rem', marginBottom: '0.5rem' }}>Pathfinding Strategy</label>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: strategy === 'indexed' ? '#10b981' : '#94a3b8', cursor: 'pointer', transition: 'color 0.2s', fontSize: '0.9rem' }}>
+              <input 
+                type="radio" 
+                value="indexed" 
+                checked={strategy === 'indexed'} 
+                onChange={() => setStrategy('indexed')}
+                style={{ accentColor: '#10b981' }}
+              />
+              ⚡ Optimized (Prefer Indexes)
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: strategy === 'shortest' ? '#3b82f6' : '#94a3b8', cursor: 'pointer', transition: 'color 0.2s', fontSize: '0.9rem' }}>
+              <input 
+                type="radio" 
+                value="shortest" 
+                checked={strategy === 'shortest'} 
+                onChange={() => setStrategy('shortest')}
+                style={{ accentColor: '#3b82f6' }}
+              />
+              📏 Shortest Path (Fewer Joins)
+            </label>
+          </div>
         </div>
 
         <button 

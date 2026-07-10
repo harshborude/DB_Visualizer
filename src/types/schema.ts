@@ -19,4 +19,5 @@ export type TableData = {
   primaryKeys: string[]
   uniqueKeys: string[][]
   foreignKeys: ForeignKey[]
+  indexes: string[][]
 }

@@ -724,8 +724,8 @@ function App() {
             <PathfinderModal 
               tables={tables} 
               onClose={() => setIsPathfinderModalOpen(false)} 
-              onFindPath={(source, target) => {
-                const result = findShortestJoinPath(source, target, tables);
+              onFindPath={(source, target, strategy) => {
+                const result = findShortestJoinPath(source, target, tables, strategy);
                 if (result.found) {
                   setPathResult(result);
                   setSelectedTable(null);

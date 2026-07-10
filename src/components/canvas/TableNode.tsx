@@ -47,6 +47,7 @@ export function TableNode({ data }: { data: { table: TableData, isHovered?: bool
       <ul style={{ paddingLeft: '0', margin: '0', listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {table.columns.map(col => {
           const isPrimaryKey = table.primaryKeys?.includes(col.name)
+          const isExplicitIndex = table.indexes?.some(idxCols => idxCols.includes(col.name))
           return (
             <li key={col.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -61,16 +62,31 @@ export function TableNode({ data }: { data: { table: TableData, isHovered?: bool
                 <strong style={{ color: '#f8fafc', fontWeight: '500' }}>{col.name}</strong> 
                 <span style={{ color: '#94a3b8', marginLeft: '0.5rem', fontSize: '0.85em', fontFamily: 'monospace' }}>{col.type}</span>
               </div>
-              {isPrimaryKey && (
-                <span title="Primary Key" className="primary-badge" style={{ 
-                  marginLeft: '0.5rem', 
-                  fontSize: '0.7rem', 
-                  fontWeight: '600', 
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  letterSpacing: '0.05em'
-                }}>P.K</span>
-              )}
+              <div>
+                {isExplicitIndex && (
+                  <span title="Indexed Column" className="index-badge" style={{ 
+                    marginLeft: '0.5rem', 
+                    fontSize: '0.7rem', 
+                    fontWeight: '600', 
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.05em',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    color: '#34d399',
+                    border: '1px solid rgba(16, 185, 129, 0.3)'
+                  }}>IDX</span>
+                )}
+                {isPrimaryKey && (
+                  <span title="Primary Key" className="primary-badge" style={{ 
+                    marginLeft: '0.5rem', 
+                    fontSize: '0.7rem', 
+                    fontWeight: '600', 
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.05em'
+                  }}>P.K</span>
+                )}
+              </div>
             </li>
           )
         })}

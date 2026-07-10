@@ -29,7 +29,8 @@ export function convertPostgresAstToSchema(ast: any): TableData[] {
         columns: [],
         primaryKeys: [],
         uniqueKeys: [],
-        foreignKeys: []
+        foreignKeys: [],
+        indexes: []
       }
       
       for (const tableElt of createStmt.tableElts || []) {
@@ -112,6 +113,29 @@ export function convertPostgresAstToSchema(ast: any): TableData[] {
             })
           }
         }
+      }
+    }
+  }
+
+  // PASS 2.5: Extract Explicit Indexes (CREATE INDEX)
+  for (const item of stmts) {
+    const rawStmt = item.stmt
+    if (!rawStmt) continue
+
+    if (rawStmt.IndexStmt) {
+      const idxStmt = rawStmt.IndexStmt
+      const tableName = idxStmt.relation?.relname
+      if (!tableName || !tablesMap[tableName]) continue
+
+      const indexCols: string[] = []
+      for (const param of idxStmt.indexParams || []) {
+        if (param.IndexElem?.name) {
+          indexCols.push(param.IndexElem.name)
+        }
+      }
+
+      if (indexCols.length > 0) {
+        tablesMap[tableName].indexes.push(indexCols)
       }
     }
   }

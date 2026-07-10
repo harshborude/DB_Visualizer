@@ -53,13 +53,16 @@ export function buildJoinGraph(tables: AnalyzedTableData[]): Map<string, JoinEdg
   return graph;
 }
 
+export type PathfinderStrategy = 'shortest' | 'indexed';
+
 /**
- * Finds the shortest path of JOINs between two tables using Breadth-First Search (BFS).
+ * Finds the shortest path of JOINs between two tables using Dijkstra's Algorithm.
  */
 export function findShortestJoinPath(
   sourceTable: string,
   targetTable: string,
-  tables: AnalyzedTableData[]
+  tables: AnalyzedTableData[],
+  strategy: PathfinderStrategy = 'shortest'
 ): PathResult {
   if (sourceTable === targetTable) {
     return {
@@ -76,30 +79,41 @@ export function findShortestJoinPath(
     return { found: false, tables: [], edges: [], sqlQuery: '' };
   }
 
-  const queue: string[] = [sourceTable];
-  const visited = new Set<string>();
-  visited.add(sourceTable);
-
-  // Tracks how we reached a specific table (toTable -> JoinEdge used to reach it)
+  const distances = new Map<string, number>();
   const parentEdge = new Map<string, JoinEdge>();
+  const pq: { table: string, cost: number }[] = [];
+
+  tables.forEach(t => distances.set(t.name, Infinity));
+  distances.set(sourceTable, 0);
+  pq.push({ table: sourceTable, cost: 0 });
 
   let pathFound = false;
 
-  while (queue.length > 0) {
-    const currentTable = queue.shift()!;
+  while (pq.length > 0) {
+    // Sort to simulate Priority Queue
+    pq.sort((a, b) => a.cost - b.cost);
+    const current = pq.shift()!;
+    const currentTable = current.table;
 
     if (currentTable === targetTable) {
       pathFound = true;
       break;
     }
 
+    if (current.cost > distances.get(currentTable)!) {
+      continue; // outdated entry
+    }
+
     const neighbors = graph.get(currentTable) || [];
 
     for (const edge of neighbors) {
-      if (!visited.has(edge.toTable)) {
-        visited.add(edge.toTable);
+      const edgeCost = getEdgeCost(edge, tables, strategy);
+      const newCost = current.cost + edgeCost;
+
+      if (newCost < distances.get(edge.toTable)!) {
+        distances.set(edge.toTable, newCost);
         parentEdge.set(edge.toTable, edge);
-        queue.push(edge.toTable);
+        pq.push({ table: edge.toTable, cost: newCost });
       }
     }
   }
@@ -150,5 +164,33 @@ function generateJoinSQL(tables: string[], edges: JoinEdge[]): string {
     sql += `JOIN ${edge.toTable} \n  ON ${joinConditions}\n`;
   });
 
-  return sql.trim() + ';';
+  return sql + ';';
+}
+
+function getEdgeCost(edge: JoinEdge, tables: AnalyzedTableData[], strategy: PathfinderStrategy): number {
+  if (strategy === 'shortest') return 1;
+  
+  const fromTable = tables.find(t => t.name === edge.fromTable);
+  const toTable = tables.find(t => t.name === edge.toTable);
+  
+  if (!fromTable || !toTable) return 100;
+  
+  const isFromIndexed = isColumnsIndexed(edge.fromColumns, fromTable);
+  const isToIndexed = isColumnsIndexed(edge.toColumns, toTable);
+  
+  if (isFromIndexed && isToIndexed) return 25;
+  if (isFromIndexed || isToIndexed) return 75;
+  return 100;
+}
+
+function isColumnsIndexed(cols: string[], table: AnalyzedTableData): boolean {
+  if (cols.length === 0) return false;
+  // Check PKs
+  if (cols.every(c => table.primaryKeys?.includes(c))) return true;
+  // Check Unique Keys
+  if (table.uniqueKeys?.some(uk => cols.every(c => uk.includes(c)))) return true;
+  // Check explicit indexes
+  if (table.indexes?.some(idx => cols.every(c => idx.includes(c)))) return true;
+  
+  return false;
 }
