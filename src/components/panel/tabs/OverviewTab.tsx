@@ -1,12 +1,33 @@
 import type { AnalyzedTableData } from '../../../utils/graphAnalytics';
+import { calculateRowSize } from '../../../utils/tableWeight';
 
 interface OverviewTabProps {
   selectedTable: AnalyzedTableData;
 }
 
 export function OverviewTab({ selectedTable }: OverviewTabProps) {
+  const rowBytes = calculateRowSize(selectedTable.columns);
+
   return (
     <>
+      {/* STORAGE ESTIMATION SECTION */}
+      <div style={{ marginBottom: '1.5rem', backgroundColor: '#1e293b', padding: '1.25rem', borderRadius: '12px', border: '1px solid #334155' }}>
+        <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.8rem', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          Storage Estimation
+        </h4>
+        <p style={{ margin: 0, fontSize: '0.95rem', color: '#cbd5e1', lineHeight: 1.6 }}>
+          Estimated Row Size: <strong style={{ color: '#f8fafc' }}>~{rowBytes} bytes</strong>
+        </p>
+        <div style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.5 }}>
+          <p style={{ margin: '0 0 0.25rem 0' }}>Projected table size:</p>
+          <ul style={{ margin: 0, paddingLeft: '1.2rem', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <li>10k rows: <strong style={{ color: '#f8fafc' }}>~{(rowBytes * 10000 / (1024 * 1024)).toFixed(2)} MB</strong></li>
+            <li>100k rows: <strong style={{ color: '#f8fafc' }}>~{(rowBytes * 100000 / (1024 * 1024)).toFixed(2)} MB</strong></li>
+            <li>1M rows: <strong style={{ color: '#f8fafc' }}>~{(rowBytes * 1000000 / (1024 * 1024)).toFixed(2)} MB</strong></li>
+          </ul>
+        </div>
+      </div>
+
       {/* GRAPH ANALYTICS SECTION */}
       <div style={{ marginBottom: '2rem', backgroundColor: '#1e293b', padding: '1.25rem', borderRadius: '12px', border: '1px solid #334155' }}>
         <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.8rem', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

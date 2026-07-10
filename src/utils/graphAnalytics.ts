@@ -1,4 +1,5 @@
 import type { TableData } from '../types/schema';
+import { calculateRowSize } from './tableWeight';
 
 export interface GraphMetrics {
   inDegree: number;
@@ -16,6 +17,7 @@ export interface GraphMetrics {
 
 export interface AnalyzedTableData extends TableData {
   metrics: GraphMetrics;
+  estimatedRowBytes: number;
 }
 
 /**
@@ -26,6 +28,50 @@ export function analyzeSchema(tables: TableData[]): AnalyzedTableData[] {
   // 1. Initialize data structures
   const tableMap = new Map<string, AnalyzedTableData>();
 
+  // 1.5. Infer Implicit Relationships
+  // e.g. `company_id` -> `companies.id` or `company.id`
+  const tableNames = new Set(tables.map(t => t.name.toLowerCase()));
+  const tableOriginalNames = new Map(tables.map(t => [t.name.toLowerCase(), t.name]));
+
+  tables.forEach(table => {
+    table.columns.forEach(col => {
+      const colLower = col.name.toLowerCase();
+      if (colLower.endsWith('_id') && colLower !== '_id' && colLower !== 'id') {
+        const baseName = colLower.slice(0, -3); // e.g. 'company'
+        
+        // check for exact match, or plural matches
+        const possibleTargets = [
+          baseName,
+          baseName + 's',
+          baseName + 'es',
+          baseName.endsWith('y') ? baseName.slice(0, -1) + 'ies' : ''
+        ].filter(Boolean);
+
+        for (const pt of possibleTargets) {
+          if (tableNames.has(pt) && pt !== table.name.toLowerCase()) {
+            const actualTargetName = tableOriginalNames.get(pt)!;
+            
+            // Check if there's already an explicit FK for this column
+            const hasExplicit = table.foreignKeys.some(fk => 
+              fk.columnNames.includes(col.name) && fk.targetTable === actualTargetName
+            );
+
+            if (!hasExplicit) {
+              table.foreignKeys.push({
+                columnNames: [col.name],
+                targetTable: actualTargetName,
+                targetColumnNames: ['id'], // assuming it points to 'id'
+                relationType: 'n:1',
+                isImplicit: true
+              });
+            }
+            break; // found the target
+          }
+        }
+      }
+    });
+  });
+
   // Dependency graph: key -> array of tables that this key DEPENDS ON (Outgoing edges)
   const outgoingEdges = new Map<string, string[]>();
   // Impact graph: key -> array of tables that DEPEND ON this key (Incoming edges)
@@ -34,6 +80,7 @@ export function analyzeSchema(tables: TableData[]): AnalyzedTableData[] {
   tables.forEach(t => {
     tableMap.set(t.name, {
       ...t,
+      estimatedRowBytes: calculateRowSize(t.columns),
       metrics: {
         inDegree: 0,
         outDegree: 0,

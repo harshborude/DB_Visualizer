@@ -10,6 +10,7 @@ export interface ForeignKey {
   targetTable: string;
   targetColumnNames: string[];
   relationType?: RelationType;
+  isImplicit?: boolean;
 }
 
 export type TableData = {

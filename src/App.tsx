@@ -10,6 +10,10 @@ import { TableNode } from './components/canvas/TableNode'
 import { Dropzone } from './components/ui/Dropzone'
 import { DetailsPanelShell } from './components/panel/DetailsPanelShell'
 import { SearchPanelShell } from './components/panel/SearchPanelShell'
+import { PathfinderModal } from './components/ui/PathfinderModal'
+import { PathfinderSQLPanel } from './components/panel/PathfinderSQLPanel'
+import { findShortestJoinPath, type PathResult } from './utils/pathfinder'
+import { calculateRowSize } from './utils/tableWeight'
 import type { ActiveTab } from './types/ui'
 
 function App() {
@@ -24,7 +28,14 @@ function App() {
   const [tables, setTables] = useState<AnalyzedTableData[]>(() => {
     try {
       const saved = localStorage.getItem('erd-tables');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.map((t: any) => ({
+          ...t,
+          estimatedRowBytes: t.estimatedRowBytes ?? calculateRowSize(t.columns)
+        }));
+      }
+      return [];
     } catch { return []; }
   })
 
@@ -41,6 +52,9 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [rfInstance, setRfInstance] = useState<any>(null);
   const [isParsing, setIsParsing] = useState(false)
+
+  const [isPathfinderModalOpen, setIsPathfinderModalOpen] = useState(false)
+  const [pathResult, setPathResult] = useState<PathResult | null>(null)
 
   const nodeTypes = useMemo(() => ({ table: TableNode }), []);
 
@@ -85,6 +99,8 @@ function App() {
     const newEdges: Edge[] = [];
     tables.forEach(table => {
       table.foreignKeys.forEach((fk, fkIdx) => {
+        if (fk.isImplicit) return;
+
         newEdges.push({
           id: `${table.name}-${fk.targetTable}-${fkIdx}`,
           source: table.name,
@@ -93,9 +109,12 @@ function App() {
             type: MarkerType.ArrowClosed,
             color: '#94a3b8' // Bolder, whiter slate-400
           },
-          style: { strokeWidth: 3, stroke: '#94a3b8' },
+          style: {
+            stroke: '#94a3b8',
+            strokeWidth: 3
+          },
           animated: false,
-        })
+        });
       })
     })
 
@@ -123,6 +142,7 @@ function App() {
       localStorage.removeItem('erd-positions');
       setTables(analyzedTables)
       setSelectedTable(null)
+      setPathResult(null)
     } catch (err: any) {
       console.error(err)
       setError(err.message || "An error occurred while parsing the schema.")
@@ -151,6 +171,7 @@ function App() {
     setSelectedTable(node.data.table);
     setActiveTab('overview');
     setIsIsolatedMode(false);
+    setPathResult(null);
   }
 
   // Derive styled nodes and edges based on hover and selection state
@@ -224,6 +245,36 @@ function App() {
   }, [edges, hoveredNodeId, hoveredEdgeId, selectedTable]);
 
   const { visibleNodes, visibleEdges } = useMemo(() => {
+    if (pathResult && pathResult.found) {
+      const pathSet = new Set(pathResult.tables);
+      
+      const isolatedNodes = styledNodes.filter(n => pathSet.has(n.id)).map(n => ({
+        ...n,
+        data: { ...n.data, isHovered: true, isConnected: true, isFaded: false }
+      }));
+
+      // Only include edges that are explicitly part of the path
+      const isolatedEdges = styledEdges.filter(e => {
+        return pathResult.edges.some(pe => 
+          (pe.fromTable === e.source && pe.toTable === e.target) || 
+          (pe.fromTable === e.target && pe.toTable === e.source)
+        );
+      }).map(e => ({
+        ...e,
+        style: { ...e.style, stroke: '#0ea5e9', strokeWidth: 4, opacity: 1, zIndex: 10 },
+        animated: true,
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#0ea5e9' }
+      }));
+
+      try {
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(isolatedNodes, isolatedEdges, 'LR');
+        return { visibleNodes: layoutedNodes, visibleEdges: layoutedEdges };
+      } catch (err) {
+        console.error("Layout failed for pathfinder:", err);
+        return { visibleNodes: isolatedNodes, visibleEdges: isolatedEdges };
+      }
+    }
+
     if (!isIsolatedMode || !selectedTable) {
       return { visibleNodes: styledNodes, visibleEdges: styledEdges };
     }
@@ -243,38 +294,16 @@ function App() {
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(isolatedNodes, isolatedEdges, 'LR');
 
     return { visibleNodes: layoutedNodes, visibleEdges: layoutedEdges };
-  }, [styledNodes, styledEdges, isIsolatedMode, selectedTable, edges]);
-
-  const previousSelectedTableRef = useRef<string | null>(null);
+  }, [styledNodes, styledEdges, isIsolatedMode, selectedTable, edges, pathResult]);
 
   useEffect(() => {
-    if (selectedTable) {
-      previousSelectedTableRef.current = selectedTable.name;
-    }
-  }, [selectedTable]);
-
-  useEffect(() => {
-    if (isIsolatedMode && rfInstance) {
+    if (rfInstance) {
       setTimeout(() => {
         rfInstance.fitView({ padding: 0.2, duration: 800 });
-      }, 50); // slight delay to allow nodes to re-render
-    } else if (!isIsolatedMode && rfInstance) {
-      const targetTableId = selectedTable?.name || previousSelectedTableRef.current;
-      if (targetTableId) {
-        setTimeout(() => {
-          const node = rfInstance.getNode(targetTableId);
-          if (node) {
-            const width = node.width ?? 320;
-            const height = node.height ?? 300;
-            const x = node.position.x + width / 2;
-            const y = node.position.y + height / 2;
-            rfInstance.setCenter(x, y, { zoom: 0.3, duration: 800 });
-          }
-        }, 50);
-      }
+      }, 50);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isIsolatedMode, rfInstance]);
+  }, [isIsolatedMode, pathResult, rfInstance]);
 
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((currentNodes) => {
@@ -339,12 +368,12 @@ function App() {
     return (
       <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#0f172a' }}>
         <div style={{
-          padding: '1rem 2rem',
-          backgroundColor: 'rgba(30, 41, 59, 0.8)',
+          padding: '0.5rem 2rem', // Reduced padding
+          backgroundColor: 'rgba(30, 41, 59, 0.95)',
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid #1e293b',
           display: 'flex',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
           alignItems: 'center',
           position: 'absolute',
           top: 0,
@@ -353,7 +382,7 @@ function App() {
           zIndex: 50
         }}>
           <h2
-            onClick={() => setTables([])}
+            onClick={() => { setTables([]); setPathResult(null); }}
             style={{
               margin: 0,
               fontSize: '1.25rem',
@@ -364,16 +393,38 @@ function App() {
               gap: '0.5rem',
               cursor: 'pointer',
               transition: 'opacity 0.2s ease',
-              position: 'absolute',
-              left: '50%',
-              transform: 'translateX(-50%)'
             }}
             onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
             onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
           >
             <span style={{ color: '#38bdf8' }}>ERDiagram</span> Canvas
           </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            {tables.length > 0 && (
+              <button
+                onClick={() => setIsPathfinderModalOpen(true)}
+                style={{
+                  padding: '0.4rem 1rem',
+                  cursor: 'pointer',
+                  backgroundColor: '#0369a1',
+                  border: '1px solid #0284c7',
+                  color: '#fff',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s ease',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.9rem'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0284c7'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#0369a1'}
+              >
+                Extract Data (Pathfinder)
+              </button>
+            )}
+            
             {tables.length > 0 && (
               <button
                 onClick={() => {
@@ -484,6 +535,7 @@ function App() {
             onPaneClick={() => {
               setSelectedTable(null);
               setIsIsolatedMode(false);
+              setPathResult(null);
             }}
             onInit={setRfInstance}
             fitView
@@ -515,6 +567,7 @@ function App() {
               setSelectedTable(table);
               setActiveTab('overview');
               setIsIsolatedMode(false);
+              setPathResult(null);
 
               if (rfInstance) {
                 const node = nodes.find(n => n.id === table.name);
@@ -529,6 +582,30 @@ function App() {
             }}
             onHoverTable={(tableName) => setHoveredNodeId(tableName)}
           />
+
+          {isPathfinderModalOpen && (
+            <PathfinderModal 
+              tables={tables} 
+              onClose={() => setIsPathfinderModalOpen(false)} 
+              onFindPath={(source, target) => {
+                const result = findShortestJoinPath(source, target, tables);
+                if (result.found) {
+                  setPathResult(result);
+                  setSelectedTable(null);
+                  setIsIsolatedMode(false);
+                } else {
+                  setError(`No relationship path found between ${source} and ${target}.`);
+                }
+              }} 
+            />
+          )}
+
+          {pathResult && pathResult.found && (
+            <PathfinderSQLPanel 
+              sqlQuery={pathResult.sqlQuery} 
+              onClose={() => setPathResult(null)} 
+            />
+          )}
         </div>
       </div>
     )
