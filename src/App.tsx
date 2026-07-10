@@ -613,7 +613,7 @@ function App() {
 
           {pathResult && pathResult.found && (
             <PathfinderSQLPanel 
-              sqlQuery={pathResult.sqlQuery} 
+              pathResult={pathResult} 
               onClose={() => setPathResult(null)} 
             />
           )}

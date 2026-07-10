@@ -5,6 +5,7 @@ export interface JoinEdge {
   toTable: string;
   fromColumns: string[];
   toColumns: string[];
+  direction: 'forward' | 'backward';
 }
 
 export interface PathResult {
@@ -29,20 +30,22 @@ function buildJoinGraph(tables: AnalyzedTableData[]): Map<string, JoinEdge[]> {
       
       if (!graph.has(targetName)) return; // defensive
 
-      // Forward edge: table -> targetName
+      // Forward edge: table -> targetName (table holds the FK)
       graph.get(table.name)!.push({
         fromTable: table.name,
         toTable: targetName,
         fromColumns: fk.columnNames,
-        toColumns: fk.targetColumnNames
+        toColumns: fk.targetColumnNames,
+        direction: 'forward'
       });
 
-      // Backward edge: targetName -> table
+      // Backward edge: targetName -> table (targetName is referenced by table)
       graph.get(targetName)!.push({
         fromTable: targetName,
         toTable: table.name,
         fromColumns: fk.targetColumnNames,
-        toColumns: fk.columnNames
+        toColumns: fk.columnNames,
+        direction: 'backward'
       });
     });
   });
