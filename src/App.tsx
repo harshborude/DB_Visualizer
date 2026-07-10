@@ -214,6 +214,8 @@ function App() {
     if (!activeNodeId && !hoveredEdgeId) return edges.map(e => ({
       ...e,
       style: { ...e.style, opacity: 1, stroke: '#94a3b8', strokeWidth: 3, zIndex: 0 },
+      labelStyle: { ...(e.labelStyle as React.CSSProperties), opacity: 1 },
+      labelBgStyle: { ...(e.labelBgStyle as React.CSSProperties), opacity: 1 },
       animated: false,
       markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' }
     }));
@@ -227,16 +229,19 @@ function App() {
         isConnected = e.id === hoveredEdgeId;
       }
 
+      const opacity = isConnected ? 1 : 0.3;
       return {
         ...e,
         style: {
           ...e.style,
           stroke: isConnected ? '#38bdf8' : '#475569',
           strokeWidth: isConnected ? 4 : 3,
-          opacity: isConnected ? 1 : 0.3,
+          opacity: opacity,
           zIndex: isConnected ? 10 : 0,
           transition: 'stroke 0.3s ease, stroke-width 0.3s ease, opacity 0.3s ease'
         },
+        labelStyle: { ...(e.labelStyle as React.CSSProperties), opacity: opacity, transition: 'opacity 0.3s ease' },
+        labelBgStyle: { ...(e.labelBgStyle as React.CSSProperties), opacity: opacity, transition: 'opacity 0.3s ease' },
         animated: isConnected,
         markerEnd: {
           type: MarkerType.ArrowClosed,
