@@ -48,53 +48,7 @@ export function analyzeSchema(tables: TableData[]): AnalyzedTableData[] {
     });
   });
 
-  // 1.5. Infer Implicit Relationships
-  // e.g. `company_id` -> `companies.id` or `company.id`
-  const tableNames = new Set(tables.map(t => t.name.toLowerCase()));
-  const tableOriginalNames = new Map(tables.map(t => [t.name.toLowerCase(), t.name]));
-
-  tables.forEach(table => {
-    table.columns.forEach(col => {
-      const colLower = col.name.toLowerCase();
-      if (colLower.endsWith('_id') && colLower !== '_id' && colLower !== 'id') {
-        const baseName = colLower.slice(0, -3); // e.g. 'company'
-        
-        // check for exact match, or plural matches
-        const possibleTargets = [
-          baseName,
-          baseName + 's',
-          baseName + 'es',
-          baseName.endsWith('y') ? baseName.slice(0, -1) + 'ies' : ''
-        ].filter(Boolean);
-
-        for (const pt of possibleTargets) {
-          if (tableNames.has(pt) && pt !== table.name.toLowerCase()) {
-            const actualTargetName = tableOriginalNames.get(pt)!;
-            
-            // Check if there's already an explicit FK for this column
-            const hasExplicit = table.foreignKeys.some(fk => 
-              fk.columnNames.includes(col.name) && fk.targetTable === actualTargetName
-            );
-
-            if (!hasExplicit) {
-              const targetTable = tableMap.get(actualTargetName);
-              const targetPkColumns = targetTable ? targetTable.primaryKeys : [];
-              const targetColumnNames = targetPkColumns.length > 0 ? targetPkColumns : ['id'];
-
-              table.foreignKeys.push({
-                columnNames: [col.name],
-                targetTable: actualTargetName,
-                targetColumnNames: targetColumnNames,
-                relationType: 'n:1',
-                isImplicit: true
-              });
-            }
-            break; // found the target
-          }
-        }
-      }
-    });
-  });
+  // Implicit relationship logic has been removed as per request.
 
   // Dependency graph: key -> array of tables that this key DEPENDS ON (Outgoing edges)
   const outgoingEdges = new Map<string, string[]>();

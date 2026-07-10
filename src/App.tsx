@@ -121,6 +121,18 @@ function App() {
       })
     })
 
+    console.group("Edge Generation Debug");
+    console.log("All generated edges (before layout/filtering):");
+    console.table(
+      newEdges.map(e => ({
+        source: e.source,
+        target: e.target,
+        label: e.label,
+        isImplicit: e.data?.isImplicit
+      }))
+    );
+    console.groupEnd();
+
     if (!savedPositions || Object.keys(savedPositions).length === 0) {
       // First time layout
       const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(newNodes, newEdges, 'LR');
