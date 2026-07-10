@@ -13,10 +13,10 @@ export function Dropzone({ onFileAccepted, isParsing, error }: DropzoneProps) {
   const loadSampleDatabase = async () => {
     setIsFetchingSample(true);
     try {
-      const response = await fetch('/postgresql_100_table_dump.sql');
+      const response = await fetch('/dvdrental.sql');
       if (!response.ok) throw new Error("Failed to fetch sample database");
       const sqlText = await response.text();
-      const sampleFile = new File([sqlText], 'postgresql_100_table_dump.sql', { type: 'text/plain' });
+      const sampleFile = new File([sqlText], 'dvdrental.sql', { type: 'text/plain' });
       onFileAccepted(sampleFile);
     } catch (err) {
       console.error("Failed to load sample database:", err);

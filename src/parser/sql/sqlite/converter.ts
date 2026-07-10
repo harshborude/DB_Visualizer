@@ -30,7 +30,8 @@ export function convertSqliteAstToSchema(rawAst: any): TableData[] {
           columns: [],
           primaryKeys: [],
           uniqueKeys: [],
-          foreignKeys: []
+          foreignKeys: [],
+          indexes: []
         };
       }
       const tableData = tablesMap[tableName];
