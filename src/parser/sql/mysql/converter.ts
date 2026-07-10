@@ -55,6 +55,17 @@ export function convertMySqlAstToSchema(rawAst: any): TableData[] {
           if (def.unique) {
             tableData.uniqueKeys.push([colName]);
           }
+          if (def.reference_definition) {
+            const targetTable = def.reference_definition.table?.[0]?.table || '';
+            const targetCols = extractColumns(def.reference_definition.definition);
+            if (targetTable && targetCols.length > 0) {
+              tableData.foreignKeys.push({
+                columnNames: [colName],
+                targetTable,
+                targetColumnNames: targetCols
+              });
+            }
+          }
         } else if (def.resource === 'constraint') {
           // Table-level constraints
           const cType = def.constraint_type?.toUpperCase();

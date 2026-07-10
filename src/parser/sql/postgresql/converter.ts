@@ -55,6 +55,12 @@ export function convertPostgresAstToSchema(ast: any): TableData[] {
               tableData.primaryKeys.push(colName)
             } else if (constraint?.contype === 'CONSTR_UNIQUE') {
               tableData.uniqueKeys.push([colName])
+            } else if (constraint?.contype === 'CONSTR_FOREIGN') {
+              tableData.foreignKeys.push({
+                columnNames: [colName],
+                targetTable: constraint.pktable?.relname || '',
+                targetColumnNames: extractStringValues(constraint.pk_attrs)
+              })
             }
           }
         } else if (tableElt.Constraint) {

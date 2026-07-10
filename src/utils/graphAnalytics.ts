@@ -28,6 +28,26 @@ export function analyzeSchema(tables: TableData[]): AnalyzedTableData[] {
   // 1. Initialize data structures
   const tableMap = new Map<string, AnalyzedTableData>();
 
+  tables.forEach(t => {
+    tableMap.set(t.name, {
+      ...t,
+      estimatedRowBytes: calculateRowSize(t.columns),
+      metrics: {
+        inDegree: 0,
+        outDegree: 0,
+        incomingDependencies: [],
+        outgoingDependencies: [],
+        isRoot: false,
+        isLeaf: false,
+        isIsolated: false,
+        impactRadius: 0,
+        partOfCycle: false,
+        componentId: 0,
+        componentSize: 0,
+      }
+    });
+  });
+
   // 1.5. Infer Implicit Relationships
   // e.g. `company_id` -> `companies.id` or `company.id`
   const tableNames = new Set(tables.map(t => t.name.toLowerCase()));
@@ -57,10 +77,14 @@ export function analyzeSchema(tables: TableData[]): AnalyzedTableData[] {
             );
 
             if (!hasExplicit) {
+              const targetTable = tableMap.get(actualTargetName);
+              const targetPkColumns = targetTable ? targetTable.primaryKeys : [];
+              const targetColumnNames = targetPkColumns.length > 0 ? targetPkColumns : ['id'];
+
               table.foreignKeys.push({
                 columnNames: [col.name],
                 targetTable: actualTargetName,
-                targetColumnNames: ['id'], // assuming it points to 'id'
+                targetColumnNames: targetColumnNames,
                 relationType: 'n:1',
                 isImplicit: true
               });
@@ -78,23 +102,6 @@ export function analyzeSchema(tables: TableData[]): AnalyzedTableData[] {
   const incomingEdges = new Map<string, string[]>();
 
   tables.forEach(t => {
-    tableMap.set(t.name, {
-      ...t,
-      estimatedRowBytes: calculateRowSize(t.columns),
-      metrics: {
-        inDegree: 0,
-        outDegree: 0,
-        incomingDependencies: [],
-        outgoingDependencies: [],
-        isRoot: false,
-        isLeaf: false,
-        isIsolated: false,
-        impactRadius: 0,
-        partOfCycle: false,
-        componentId: 0,
-        componentSize: 0,
-      }
-    });
     outgoingEdges.set(t.name, []);
     incomingEdges.set(t.name, []);
   });

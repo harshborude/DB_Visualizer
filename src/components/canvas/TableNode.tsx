@@ -1,13 +1,16 @@
 import { Handle, Position } from 'reactflow';
 import type { TableData } from '../../types/schema';
 
-export function TableNode({ data }: { data: { table: TableData, isHovered?: boolean, isConnected?: boolean, isFaded?: boolean } }) {
-  const { table, isHovered, isConnected, isFaded } = data;
+export function TableNode({ data }: { data: { table: TableData, isHovered?: boolean, isConnected?: boolean, isFaded?: boolean, isImplicitView?: boolean } }) {
+  const { table, isHovered, isConnected, isFaded, isImplicitView } = data;
   
   let glowStyle = '0 4px 15px rgba(0,0,0,0.5)'; // default dark shadow
   let borderColor = '#475569'; // lighter slate-600 border so it stands out
   
-  if (isHovered) {
+  if (isImplicitView) {
+    glowStyle = '0 0 25px rgba(248, 250, 252, 0.4)'; // White glow
+    borderColor = '#f8fafc'; // slate-50
+  } else if (isHovered) {
     glowStyle = '0 0 25px rgba(56, 189, 248, 0.6)'; // Sky Blue glow
     borderColor = '#38bdf8'; // sky-400
   } else if (isConnected) {

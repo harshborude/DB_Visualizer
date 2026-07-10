@@ -18,6 +18,7 @@ import type { ActiveTab } from './types/ui'
 
 function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showImplicit, setShowImplicit] = useState(false);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -39,8 +40,8 @@ function App() {
     } catch { return []; }
   })
 
-  const [nodes, setNodes] = useNodesState<Node[]>([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([])
+  const [nodes, setNodes] = useNodesState<Node>([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
 
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null)
@@ -99,12 +100,14 @@ function App() {
     const newEdges: Edge[] = [];
     tables.forEach(table => {
       table.foreignKeys.forEach((fk, fkIdx) => {
-        if (fk.isImplicit) return;
-
         newEdges.push({
           id: `${table.name}-${fk.targetTable}-${fkIdx}`,
           source: table.name,
           target: fk.targetTable,
+          label: `${fk.columnNames.join(', ')} → ${fk.targetColumnNames.join(', ')}`,
+          labelBgStyle: { fill: '#1e293b', stroke: '#334155', strokeWidth: 1, rx: 4, ry: 4 },
+          labelStyle: { fill: '#cbd5e1', fontSize: 10, fontWeight: 500, fontFamily: 'monospace' },
+          data: { isImplicit: fk.isImplicit },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             color: '#94a3b8' // Bolder, whiter slate-400
@@ -275,8 +278,43 @@ function App() {
       }
     }
 
+    if (showImplicit) {
+      const implicitNodeIds = new Set<string>();
+      const implicitEdges = edges.filter(e => (e.data as any)?.isImplicit);
+      implicitEdges.forEach(e => {
+        implicitNodeIds.add(e.source);
+        implicitNodeIds.add(e.target);
+      });
+
+      const filteredNodes = styledNodes
+        .filter(n => implicitNodeIds.has(n.id))
+        .map(n => ({
+          ...n,
+          data: { ...n.data, isHovered: true, isConnected: true, isFaded: false, isImplicitView: true }
+        }));
+
+      const filteredEdges = styledEdges
+        .filter(e => (e.data as any)?.isImplicit)
+        .map(e => ({
+          ...e,
+          style: { ...e.style, stroke: '#f8fafc', strokeWidth: 4, opacity: 1, strokeDasharray: '5,5', zIndex: 10 },
+          animated: true,
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#f8fafc' }
+        }));
+
+      try {
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(filteredNodes, filteredEdges, 'LR');
+        return { visibleNodes: layoutedNodes, visibleEdges: layoutedEdges };
+      } catch (err) {
+        return { visibleNodes: filteredNodes, visibleEdges: filteredEdges };
+      }
+    }
+
     if (!isIsolatedMode || !selectedTable) {
-      return { visibleNodes: styledNodes, visibleEdges: styledEdges };
+      return { 
+        visibleNodes: styledNodes, 
+        visibleEdges: styledEdges.filter(e => !(e.data as any)?.isImplicit) 
+      };
     }
 
     const anchorNodeId = selectedTable.name;
@@ -288,13 +326,13 @@ function App() {
     });
 
     const isolatedNodes = styledNodes.filter(n => connectedNodeIds.has(n.id));
-    const isolatedEdges = styledEdges.filter(e => connectedNodeIds.has(e.source) && connectedNodeIds.has(e.target));
+    const isolatedEdges = styledEdges.filter(e => !(e.data as any)?.isImplicit && connectedNodeIds.has(e.source) && connectedNodeIds.has(e.target));
 
     // Auto-layout just these nodes
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(isolatedNodes, isolatedEdges, 'LR');
 
     return { visibleNodes: layoutedNodes, visibleEdges: layoutedEdges };
-  }, [styledNodes, styledEdges, isIsolatedMode, selectedTable, edges, pathResult]);
+  }, [styledNodes, styledEdges, isIsolatedMode, selectedTable, edges, pathResult, showImplicit]);
 
   useEffect(() => {
     if (rfInstance) {
@@ -303,7 +341,7 @@ function App() {
       }, 50);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isIsolatedMode, pathResult, rfInstance]);
+  }, [isIsolatedMode, pathResult, rfInstance, showImplicit]);
 
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((currentNodes) => {
@@ -428,6 +466,30 @@ function App() {
             {tables.length > 0 && (
               <button
                 onClick={() => {
+                  setShowImplicit(!showImplicit);
+                  setIsIsolatedMode(false);
+                  setPathResult(null);
+                }}
+                style={{
+                  padding: '0.4rem 1rem',
+                  cursor: 'pointer',
+                  backgroundColor: showImplicit ? '#0f172a' : 'transparent',
+                  border: '1px solid',
+                  borderColor: showImplicit ? '#cbd5e1' : '#334155',
+                  color: showImplicit ? '#f8fafc' : '#cbd5e1',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s ease',
+                  fontWeight: 600,
+                  fontSize: '0.9rem'
+                }}
+              >
+                {showImplicit ? 'Hide Implicit Relationships' : 'Show Implicit Relationships'}
+              </button>
+            )}
+
+            {tables.length > 0 && (
+              <button
+                onClick={() => {
                   const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, 'LR');
                   setNodes(layoutedNodes);
                   setEdges(layoutedEdges);
@@ -540,6 +602,7 @@ function App() {
             onInit={setRfInstance}
             fitView
             minZoom={0.1}
+            nodesConnectable={false}
           >
             <Background color="rgba(255, 255, 255, 0.2)" gap={24} size={2} />
             <Controls style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', fill: '#94a3b8' }} />
