@@ -109,33 +109,33 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
       top: '80px',
       bottom: '20px',
       width: '450px',
-      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+      backgroundColor: 'rgba(0, 0, 0, 0.95)',
       backdropFilter: 'blur(12px)',
-      border: '1px solid #1e293b',
+      border: '1px solid #222222',
       borderRadius: '12px',
       display: 'flex',
       flexDirection: 'column',
-      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
       zIndex: 40,
       overflow: 'hidden'
     }}>
       {/* Header */}
-      <div style={{ padding: '1.25rem', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-          Query Builder
+      <div style={{ padding: '1.25rem', borderBottom: '1px solid #222222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0, color: '#ffffff', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+          <span style={{ color: '#ffffff' }}>Query Builder</span>
         </h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {state.tables.length > 0 && (
             <button 
               onClick={() => setState({ tables: [], columns: [], filters: [], sorts: [], manualJoins: [] })}
-              style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer' }}
+              style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.2s' }}
               title="Clear all selections"
             >
               Clear All
             </button>
           )}
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.25rem' }}>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '0.25rem', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#fff'} onMouseOut={e => e.currentTarget.style.color = '#6b7280'}>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
@@ -143,7 +143,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
 
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '1rem', borderBottom: '1px solid #1e293b', display: 'flex', gap: '1rem' }}>
+        <div style={{ padding: '1rem', borderBottom: '1px solid #222222', display: 'flex', gap: '1rem' }}>
           {(['columns', 'filters', 'sorts'] as const).map(tab => (
             <button
               key={tab}
@@ -151,13 +151,14 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
               style={{
                 background: 'transparent',
                 border: 'none',
-                borderBottom: activeTab === tab ? '2px solid #38bdf8' : '2px solid transparent',
-                color: activeTab === tab ? '#38bdf8' : '#94a3b8',
+                borderBottom: activeTab === tab ? '2px solid #10b981' : '2px solid transparent',
+                color: activeTab === tab ? '#10b981' : '#6b7280',
                 padding: '0.5rem 0',
                 fontSize: '0.9rem',
                 fontWeight: 600,
                 cursor: 'pointer',
-                textTransform: 'capitalize'
+                textTransform: 'capitalize',
+                transition: 'all 0.2s'
               }}
             >
               {tab} {tab === 'columns' ? `(${state.columns.length})` : tab === 'filters' ? `(${state.filters.length})` : `(${state.sorts.length})`}
@@ -175,15 +176,15 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
               {activeTab === 'columns' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {state.columns.map((col, idx) => (
-                    <div key={idx} style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155' }}>
+                    <div key={idx} style={{ backgroundColor: '#111111', padding: '0.75rem', borderRadius: '8px', border: '1px solid #333333' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <span style={{ color: '#f8fafc', fontSize: '0.9rem', fontWeight: 500 }}>{col.tableName}.{col.columnName}</span>
+                        <span style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: 500 }}>{col.tableName}.{col.columnName}</span>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <select
                           value={col.func || ''}
                           onChange={(e) => updateColumn(idx, { func: (e.target.value || undefined) as any })}
-                          style={{ flex: 1, backgroundColor: '#0f172a', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '4px', padding: '0.25rem', fontSize: '0.8rem' }}
+                          style={{ flex: 1, backgroundColor: '#000000', color: '#e5e7eb', border: '1px solid #333333', borderRadius: '4px', padding: '0.25rem', fontSize: '0.8rem' }}
                         >
                           <option value="">No function</option>
                           <option value="COUNT">COUNT</option>
@@ -197,7 +198,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
                           placeholder="Alias AS..."
                           value={col.alias || ''}
                           onChange={(e) => updateColumn(idx, { alias: e.target.value })}
-                          style={{ flex: 1, backgroundColor: '#0f172a', color: '#f8fafc', border: '1px solid #334155', borderRadius: '4px', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                          style={{ flex: 1, backgroundColor: '#000000', color: '#ffffff', border: '1px solid #333333', borderRadius: '4px', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
                         />
                       </div>
                     </div>
@@ -211,7 +212,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
               {activeTab === 'filters' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {state.filters.map((filter, idx) => (
-                    <div key={filter.id} style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div key={filter.id} style={{ backgroundColor: '#111111', padding: '0.75rem', borderRadius: '8px', border: '1px solid #333333', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <select
                           value={`${filter.tableName}.${filter.columnName}`}
@@ -219,7 +220,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
                             const [tableName, columnName] = e.target.value.split('.');
                             updateFilter(idx, { tableName, columnName });
                           }}
-                          style={{ flex: 1, backgroundColor: '#0f172a', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '4px', padding: '0.25rem', fontSize: '0.8rem' }}
+                          style={{ flex: 1, backgroundColor: '#000000', color: '#e5e7eb', border: '1px solid #333333', borderRadius: '4px', padding: '0.25rem', fontSize: '0.8rem' }}
                         >
                           {availableColumns.map(ac => (
                             <option key={`${ac.table}.${ac.column}`} value={`${ac.table}.${ac.column}`}>
@@ -235,7 +236,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
                         <select
                           value={filter.operator}
                           onChange={(e) => updateFilter(idx, { operator: e.target.value as any })}
-                          style={{ width: '80px', backgroundColor: '#0f172a', color: '#38bdf8', border: '1px solid #334155', borderRadius: '4px', padding: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}
+                          style={{ width: '80px', backgroundColor: '#000000', color: '#3b82f6', border: '1px solid #333333', borderRadius: '4px', padding: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}
                         >
                           <option value="=">=</option>
                           <option value="!=">!=</option>
@@ -251,12 +252,12 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
                           placeholder="Value..."
                           value={filter.value}
                           onChange={(e) => updateFilter(idx, { value: e.target.value })}
-                          style={{ flex: 1, backgroundColor: '#0f172a', color: '#f8fafc', border: '1px solid #334155', borderRadius: '4px', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                          style={{ flex: 1, backgroundColor: '#000000', color: '#ffffff', border: '1px solid #333333', borderRadius: '4px', padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
                         />
                       </div>
                     </div>
                   ))}
-                  <button onClick={addFilter} style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px dashed #0ea5e9', padding: '0.5rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.25rem', transition: 'background-color 0.2s' }}>
+                  <button onClick={addFilter} style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px dashed #10b981', padding: '0.5rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.25rem', transition: 'background-color 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.2)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     Add Filter
                   </button>
@@ -266,14 +267,14 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
               {activeTab === 'sorts' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {state.sorts.map((sort, idx) => (
-                    <div key={idx} style={{ backgroundColor: '#1e293b', padding: '0.75rem', borderRadius: '8px', border: '1px solid #334155', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <div key={idx} style={{ backgroundColor: '#111111', padding: '0.75rem', borderRadius: '8px', border: '1px solid #333333', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       <select
                         value={`${sort.tableName}.${sort.columnName}`}
                         onChange={(e) => {
                           const [tableName, columnName] = e.target.value.split('.');
                           updateSort(idx, { tableName, columnName });
                         }}
-                        style={{ flex: 1, backgroundColor: '#0f172a', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '4px', padding: '0.25rem', fontSize: '0.8rem' }}
+                        style={{ flex: 1, backgroundColor: '#000000', color: '#e5e7eb', border: '1px solid #333333', borderRadius: '4px', padding: '0.25rem', fontSize: '0.8rem' }}
                       >
                         {availableColumns.map(ac => (
                           <option key={`${ac.table}.${ac.column}`} value={`${ac.table}.${ac.column}`}>
@@ -284,7 +285,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
                       <select
                         value={sort.direction}
                         onChange={(e) => updateSort(idx, { direction: e.target.value as any })}
-                        style={{ width: '80px', backgroundColor: '#0f172a', color: '#38bdf8', border: '1px solid #334155', borderRadius: '4px', padding: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}
+                        style={{ width: '80px', backgroundColor: '#000000', color: '#3b82f6', border: '1px solid #333333', borderRadius: '4px', padding: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}
                       >
                         <option value="ASC">ASC</option>
                         <option value="DESC">DESC</option>
@@ -294,7 +295,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
                       </button>
                     </div>
                   ))}
-                  <button onClick={addSort} style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px dashed #0ea5e9', padding: '0.5rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.25rem', transition: 'background-color 0.2s' }}>
+                  <button onClick={addSort} style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px dashed #3b82f6', padding: '0.5rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.25rem', transition: 'background-color 0.2s' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.2)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)'}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     Add Sort
                   </button>
@@ -306,8 +307,8 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
       </div>
 
       {/* SQL Preview Footer */}
-      <div style={{ padding: '1rem', borderTop: '1px solid #1e293b', backgroundColor: '#0f172a' }}>
-        <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>SQL Preview</h4>
+      <div style={{ padding: '1rem', borderTop: '1px solid #222222', backgroundColor: '#000000' }}>
+        <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.75rem', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>SQL Preview</h4>
         
         {queryError ? (
           <div style={{ color: '#ef4444', fontSize: '0.85rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
@@ -316,13 +317,15 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
           </div>
         ) : (
           <div style={{ position: 'relative' }}>
-            <pre style={{ margin: 0, padding: '0.75rem', backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '6px', color: '#e2e8f0', fontSize: '0.8rem', overflowX: 'auto', maxHeight: '150px', fontFamily: 'monospace' }}>
+            <pre style={{ margin: 0, padding: '0.75rem', backgroundColor: '#111111', border: '1px solid #333333', borderRadius: '6px', color: '#e5e7eb', fontSize: '0.8rem', overflowX: 'auto', maxHeight: '150px', fontFamily: 'monospace' }}>
               <code>{sqlPreview || '-- Select tables and columns'}</code>
             </pre>
             {sqlPreview && (
               <button 
                 onClick={() => navigator.clipboard.writeText(sqlPreview)}
-                style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: '#1e293b', border: '1px solid #334155', color: '#cbd5e1', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer' }}
+                style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: '#222222', border: '1px solid #333333', color: '#e5e7eb', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', transition: 'background 0.2s' }}
+                onMouseOver={e => e.currentTarget.style.background = '#333333'}
+                onMouseOut={e => e.currentTarget.style.background = '#222222'}
               >
                 Copy
               </button>

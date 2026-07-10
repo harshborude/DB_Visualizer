@@ -444,13 +444,14 @@ function App() {
   }, [setNodes]);
 
   if (tables.length > 0) {
+    const isQb = isQueryBuilderMode;
     return (
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#0f172a' }}>
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: isQb ? '#000000' : '#0f172a' }}>
         <div style={{
           padding: '0.5rem 2rem', // Reduced padding
-          backgroundColor: 'rgba(30, 41, 59, 0.95)',
+          backgroundColor: isQb ? 'rgba(0, 0, 0, 0.95)' : 'rgba(30, 41, 59, 0.95)',
           backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid #1e293b',
+          borderBottom: isQb ? '1px solid #222' : '1px solid #1e293b',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -458,7 +459,8 @@ function App() {
           top: 0,
           left: 0,
           right: 0,
-          zIndex: 50
+          zIndex: 50,
+          transition: 'background-color 0.3s ease, border-color 0.3s ease'
         }}>
           <h2
             onClick={() => { setTables([]); setPathResult(null); }}
@@ -466,7 +468,7 @@ function App() {
               margin: 0,
               fontSize: '1.25rem',
               fontWeight: 600,
-              color: '#f8fafc',
+              color: isQb ? '#ffffff' : '#f8fafc',
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
@@ -476,7 +478,11 @@ function App() {
             onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
             onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
           >
-            <span style={{ color: '#38bdf8' }}>ERDiagram</span> Canvas
+            {isQb ? (
+              <><span style={{ color: '#10b981' }}>Query</span> <span style={{ color: '#3b82f6' }}>Builder</span></>
+            ) : (
+              <><span style={{ color: '#38bdf8' }}>ERDiagram</span> Canvas</>
+            )}
           </h2>
 
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -641,7 +647,7 @@ function App() {
           </div>
         )}
 
-        <div style={{ flex: 1, backgroundColor: '#0f172a', position: 'relative' }}>
+        <div style={{ flex: 1, backgroundColor: isQb ? '#000000' : '#0f172a', position: 'relative', transition: 'background-color 0.3s ease' }}>
           <ReactFlow
             nodes={visibleNodes}
             edges={visibleEdges}
@@ -663,8 +669,8 @@ function App() {
             minZoom={0.1}
             nodesConnectable={false}
           >
-            <Background color="rgba(255, 255, 255, 0.2)" gap={24} size={2} />
-            <Controls style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', fill: '#94a3b8' }} />
+            <Background color={isQb ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.2)'} gap={24} size={2} />
+            <Controls style={{ backgroundColor: isQb ? '#000000' : '#0f172a', border: isQb ? '1px solid #333' : '1px solid #1e293b', fill: isQb ? '#10b981' : '#94a3b8' }} />
           </ReactFlow>
 
           {!isQueryBuilderMode && selectedTable && (
