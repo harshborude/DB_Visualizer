@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import type { PathResult } from '../../utils/pathfinder';
+import type { AnalyzedTableData } from '../../utils/graphAnalytics';
 
 interface PathfinderSQLPanelProps {
   pathResult: PathResult;
+  tables: AnalyzedTableData[];
   onClose: () => void;
 }
 
@@ -52,10 +54,17 @@ function getPathSemantics(edges: PathResult['edges']): { title: string; descript
   };
 }
 
-function getQueryResultDescription(edges: PathResult['edges'], tables: string[]): string {
-  const tableList = tables.map(t => t.charAt(0).toUpperCase() + t.slice(1) + ' information');
-  let description = `This query returns:\n\n${tableList.map(t => `• ${t}`).join('\n')}\n\n`;
+function getQueryResultDescription(edges: PathResult['edges'], pathTables: string[], allTables: AnalyzedTableData[]): string {
+  let description = `This query returns:\n\n`;
 
+  pathTables.forEach(tableName => {
+    const tableData = allTables.find(t => t.name === tableName);
+    if (tableData) {
+      const colNames = tableData.columns.map(c => c.name).join(', ');
+      description += `• ${tableName.charAt(0).toUpperCase() + tableName.slice(1)} information\n`;
+      description += `  (Columns: ${colNames})\n\n`;
+    }
+  });
   if (edges.length === 1) {
     description += `for records where ${edges[0].fromTable} directly references ${edges[0].toTable}.`;
   } else if (edges.length === 2) {
@@ -76,7 +85,7 @@ function getQueryResultDescription(edges: PathResult['edges'], tables: string[])
   return description;
 }
 
-export function PathfinderSQLPanel({ pathResult, onClose }: PathfinderSQLPanelProps) {
+export function PathfinderSQLPanel({ pathResult, tables, onClose }: PathfinderSQLPanelProps) {
   const [copied, setCopied] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'sql' | 'result'>('sql');
@@ -90,7 +99,7 @@ export function PathfinderSQLPanel({ pathResult, onClose }: PathfinderSQLPanelPr
   if (!pathResult || !pathResult.found || !pathResult.sqlQuery) return null;
 
   const semantics = getPathSemantics(pathResult.edges);
-  const queryResultDesc = getQueryResultDescription(pathResult.edges, pathResult.tables);
+  const queryResultDesc = getQueryResultDescription(pathResult.edges, pathResult.tables, tables);
 
   return (
     <div style={{
@@ -246,13 +255,46 @@ export function PathfinderSQLPanel({ pathResult, onClose }: PathfinderSQLPanelPr
               overflowX: 'auto',
               maxHeight: '40vh',
               overflowY: 'auto',
-              color: '#f8fafc',
-              fontSize: '0.9rem',
-              lineHeight: 1.6
+              color: '#f8fafc'
             }}>
-              <pre style={{ margin: 0, fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}>
-                {queryResultDesc}
-              </pre>
+              <div style={{ marginBottom: '1rem', color: '#cbd5e1', fontSize: '0.9rem' }}>
+                This query returns the following columns:
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr>
+                    {pathResult.tables.flatMap(tableName => {
+                      const tableData = tables.find(t => t.name === tableName);
+                      return tableData ? tableData.columns.map(c => ({ table: tableName, column: c.name })) : [];
+                    }).map((col, idx) => (
+                      <th key={idx} style={{ 
+                        padding: '0.75rem', 
+                        borderBottom: '1px solid #334155',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        borderRight: '1px solid #1e293b',
+                        color: '#38bdf8',
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap'
+                      }}>
+                        <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 'normal', marginBottom: '0.25rem', textTransform: 'uppercase' }}>{col.table}</div>
+                        {col.column}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[1, 2, 3].map(rowIdx => (
+                    <tr key={rowIdx} style={{ borderBottom: '1px solid #1e293b' }}>
+                      {pathResult.tables.flatMap(tableName => {
+                        const tableData = tables.find(t => t.name === tableName);
+                        return tableData ? tableData.columns.map(c => c.name) : [];
+                      }).map((_, idx) => (
+                        <td key={idx} style={{ padding: '0.75rem', borderRight: '1px solid #1e293b', color: '#64748b' }}>...</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </>
