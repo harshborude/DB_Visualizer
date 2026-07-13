@@ -6,9 +6,11 @@ interface SearchPanelShellProps {
   selectedTable: AnalyzedTableData | null;
   onSelectTable: (table: AnalyzedTableData) => void;
   onHoverTable: (tableName: string | null) => void;
+  isMobile?: boolean;
+  onClose?: () => void;
 }
 
-export function SearchPanelShell({ tables, selectedTable, onSelectTable, onHoverTable }: SearchPanelShellProps) {
+export function SearchPanelShell({ tables, selectedTable, onSelectTable, onHoverTable, isMobile, onClose }: SearchPanelShellProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredTables = useMemo(() => {
@@ -27,7 +29,7 @@ export function SearchPanelShell({ tables, selectedTable, onSelectTable, onHover
       top: '73px', // Below the header
       left: 0,
       bottom: 0,
-      width: '280px', // Thinner than DetailsPanelShell (400px)
+      width: isMobile ? '240px' : '280px',
       backgroundColor: 'rgba(15, 23, 42, 0.95)',
       backdropFilter: 'blur(16px)',
       borderRight: '1px solid #334155',
@@ -37,7 +39,12 @@ export function SearchPanelShell({ tables, selectedTable, onSelectTable, onHover
       flexDirection: 'column',
     }}>
       {/* Search Header */}
-      <div style={{ padding: '1.5rem', borderBottom: '1px solid #334155', flexShrink: 0 }}>
+      <div style={{ padding: '1.5rem', borderBottom: '1px solid #334155', flexShrink: 0, position: 'relative' }}>
+        {onClose && (
+          <button onClick={onClose} style={{ position: 'absolute', top: '1.2rem', right: '1rem', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        )}
         <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: '#f8fafc', fontWeight: 600, textAlign: 'center' }}>Tables</h3>
         <div style={{ position: 'relative' }}>
           <svg 

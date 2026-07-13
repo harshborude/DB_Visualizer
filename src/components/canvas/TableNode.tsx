@@ -1,8 +1,10 @@
 import { Handle, Position } from 'reactflow';
 import type { TableData } from '../../types/schema';
 
-export function TableNode({ data }: { data: { table: TableData, isHovered?: boolean, isConnected?: boolean, isFaded?: boolean, isImplicitView?: boolean, isQueryBuilderMode?: boolean, selectedColumns?: string[], isTableSelected?: boolean, onToggleColumn?: (t: string, c: string) => void, onToggleTable?: (t: string) => void } }) {
-  const { table, isHovered, isConnected, isFaded, isImplicitView, isQueryBuilderMode, selectedColumns = [], isTableSelected = false, onToggleColumn, onToggleTable } = data;
+export function TableNode({ data }: { data: { table: TableData, isHovered?: boolean, isConnected?: boolean, isFaded?: boolean, isImplicitView?: boolean, isQueryBuilderMode?: boolean, selectedColumns?: string[], isTableSelected?: boolean, onToggleColumn?: (t: string, c: string) => void, onToggleTable?: (t: string) => void, isMobile?: boolean, isIsolatedMode?: boolean } }) {
+  const { table, isHovered, isConnected, isFaded, isImplicitView, isQueryBuilderMode, selectedColumns = [], isTableSelected = false, onToggleColumn, onToggleTable, isMobile, isIsolatedMode } = data;
+  
+  const isCollapsed = isMobile && !isIsolatedMode;
   
   let glowStyle = '0 4px 15px rgba(0,0,0,0.5)'; // default dark shadow
   let borderColor = '#475569'; // lighter slate-600 border so it stands out
@@ -32,7 +34,7 @@ export function TableNode({ data }: { data: { table: TableData, isHovered?: bool
     }}>
       <Handle type="target" position={Position.Left} style={{ background: '#38bdf8', width: '8px', height: '8px', border: 'none' }} />
       
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 0 1.25rem 0', paddingBottom: '1rem', borderBottom: '2px dotted #334155' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: isCollapsed ? '0' : '0 0 1.25rem 0', paddingBottom: isCollapsed ? '0' : '1rem', borderBottom: isCollapsed ? 'none' : '2px dotted #334155' }}>
         {isQueryBuilderMode && (
           <input 
             type="checkbox" 
@@ -44,8 +46,9 @@ export function TableNode({ data }: { data: { table: TableData, isHovered?: bool
         <h3 style={{ margin: 0, color: '#f1f5f9', fontSize: '1.4rem', letterSpacing: '0.025em', textAlign: 'center' }}>{table.name}</h3>
       </div>
       
-      <ul style={{ paddingLeft: '0', margin: '0', listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {table.columns.map(col => {
+      {!isCollapsed && (
+        <ul style={{ paddingLeft: '0', margin: '0', listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {table.columns.map(col => {
           const isPrimaryKey = table.primaryKeys?.includes(col.name)
           const isExplicitIndex = table.indexes?.some(idxCols => idxCols.includes(col.name))
           return (
@@ -90,9 +93,10 @@ export function TableNode({ data }: { data: { table: TableData, isHovered?: bool
             </li>
           )
         })}
-      </ul>
+        </ul>
+      )}
 
-      {table.foreignKeys && table.foreignKeys.length > 0 && (
+      {!isCollapsed && table.foreignKeys && table.foreignKeys.length > 0 && (
         <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '2px dotted #334155' }}>
           <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Relationships</h4>
           <ul style={{ paddingLeft: '0', margin: '0', fontSize: '0.85rem', listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

@@ -14,11 +14,13 @@ import { PathfinderModal } from './components/ui/PathfinderModal'
 import { PathfinderSQLPanel } from './components/panel/PathfinderSQLPanel'
 import { findShortestJoinPath, type PathResult } from './utils/pathfinder'
 import { calculateRowSize } from './utils/tableWeight'
-import type { ActiveTab } from './types/ui'
 import type { QueryBuilderState } from './utils/queryBuilder'
 import { QueryBuilderPanel } from './components/panel/QueryBuilderPanel';
 import { CanvasLegend } from './components/canvas/CanvasLegend';
+import { useIsMobile } from './hooks/useIsMobile';
+import type { ActiveTab } from './types/ui'
 function App() {
+  const isMobile = useIsMobile();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -67,6 +69,8 @@ function App() {
     manualJoins: []
   })
 
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(window.innerWidth >= 768);
+
   const handleToggleColumn = useCallback((tableName: string, columnName: string) => {
     setQueryBuilderState(prev => {
       const isSelected = prev.columns.some(c => c.tableName === tableName && c.columnName === columnName)
@@ -76,7 +80,7 @@ function App() {
       } else {
         newColumns = [...prev.columns, { tableName, columnName }]
       }
-      
+
       const newTables = Array.from(new Set([
         ...newColumns.map(c => c.tableName),
         ...prev.filters.map(f => f.tableName),
@@ -96,7 +100,7 @@ function App() {
       const isSelected = prev.tables.includes(tableName)
       let newTables = prev.tables
       let newColumns = prev.columns
-      
+
       if (isSelected) {
         // Remove table and all its columns
         newTables = prev.tables.filter(t => t !== tableName)
@@ -105,7 +109,7 @@ function App() {
         // Add table
         newTables = [...prev.tables, tableName]
       }
-      
+
       // If table is removed, should we remove its filters/sorts? For now keep simple
       return {
         ...prev,
@@ -238,7 +242,7 @@ function App() {
 
   const styledNodes = useMemo(() => {
     const activeNodeId = hoveredNodeId || selectedTable?.name || null;
-    
+
     // Inject common query builder props
     const injectQbProps = (n: Node) => ({
       ...n.data,
@@ -246,7 +250,9 @@ function App() {
       selectedColumns: queryBuilderState.columns.filter(c => c.tableName === n.id).map(c => c.columnName),
       isTableSelected: queryBuilderState.tables.includes(n.id),
       onToggleColumn: handleToggleColumn,
-      onToggleTable: handleToggleTable
+      onToggleTable: handleToggleTable,
+      isMobile,
+      isIsolatedMode
     });
 
     if (!activeNodeId && !hoveredEdgeId) return nodes.map(n => ({ ...n, data: { ...injectQbProps(n), isFaded: false, isHovered: false, isConnected: false } }));
@@ -324,7 +330,7 @@ function App() {
   const { visibleNodes, visibleEdges } = useMemo(() => {
     if (pathResult && pathResult.found) {
       const pathSet = new Set(pathResult.tables);
-      
+
       const isolatedNodes = styledNodes.filter(n => pathSet.has(n.id)).map(n => ({
         ...n,
         data: { ...n.data, isHovered: true, isConnected: true, isFaded: false }
@@ -332,8 +338,8 @@ function App() {
 
       // Only include edges that are explicitly part of the path
       const isolatedEdges = styledEdges.filter(e => {
-        return pathResult.edges.some(pe => 
-          (pe.fromTable === e.source && pe.toTable === e.target) || 
+        return pathResult.edges.some(pe =>
+          (pe.fromTable === e.source && pe.toTable === e.target) ||
           (pe.fromTable === e.target && pe.toTable === e.source)
         );
       }).map(e => ({
@@ -353,8 +359,8 @@ function App() {
     }
 
     if (!isIsolatedMode || !selectedTable) {
-      return { 
-        visibleNodes: styledNodes, 
+      return {
+        visibleNodes: styledNodes,
         visibleEdges: styledEdges
       };
     }
@@ -507,10 +513,11 @@ function App() {
                 onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0284c7'}
                 onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#0369a1'}
               >
-                Extract Data (Pathfinder)
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                {!isMobile && "Extract Data (Pathfinder)"}
               </button>
             )}
-            
+
             {tables.length > 0 && (
               <button
                 onClick={() => {
@@ -549,7 +556,8 @@ function App() {
                   }
                 }}
               >
-                {isQueryBuilderMode ? 'Exit Query Builder' : 'Query Builder'}
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                {!isMobile && (isQueryBuilderMode ? 'Exit Query Builder' : 'Query Builder')}
               </button>
             )}
             {tables.length > 0 && (
@@ -580,7 +588,8 @@ function App() {
                   e.currentTarget.style.color = '#cbd5e1';
                 }}
               >
-                Auto Layout
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                {!isMobile && "Auto Layout"}
               </button>
             )}
             {isParsing && (
@@ -632,7 +641,8 @@ function App() {
                 e.currentTarget.style.color = '#cbd5e1';
               }}
             >
-              Upload New File
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              {!isMobile && "Upload New File"}
             </button>
           </div>
         </div>
@@ -685,6 +695,7 @@ function App() {
               }}
               isIsolatedMode={isIsolatedMode}
               onToggleIsolation={() => setIsIsolatedMode(prev => !prev)}
+              isMobile={isMobile}
             />
           )}
 
@@ -697,35 +708,55 @@ function App() {
             />
           )}
 
-          <SearchPanelShell
-            tables={tables}
-            selectedTable={selectedTable}
-            onSelectTable={(table) => {
-              setSelectedTable(table);
-              setActiveTab('overview');
-              setIsIsolatedMode(false);
-              setPathResult(null);
+          {isMobile && !isLeftPanelOpen && tables.length > 0 && !isQueryBuilderMode && (
+            <button
+              onClick={() => setIsLeftPanelOpen(true)}
+              style={{
+                position: 'absolute', top: '80px', left: '16px', zIndex: 40,
+                backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f8fafc',
+                padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+              Tables
+            </button>
+          )}
 
-              if (rfInstance) {
-                const node = nodes.find(n => n.id === table.name);
-                if (node) {
-                  const width = node.width ?? 320;
-                  const height = node.height ?? 300;
-                  const x = node.position.x + width / 2;
-                  const y = node.position.y + height / 2;
-                  rfInstance.setCenter(x, y, { zoom: 0.3, duration: 800 });
+          {(!isMobile || isLeftPanelOpen) && (
+            <SearchPanelShell
+              tables={tables}
+              selectedTable={selectedTable}
+              isMobile={isMobile}
+              onClose={isMobile ? () => setIsLeftPanelOpen(false) : undefined}
+              onSelectTable={(table) => {
+                setSelectedTable(table);
+                setActiveTab('overview');
+                setIsIsolatedMode(false);
+                setPathResult(null);
+                if (isMobile) setIsLeftPanelOpen(false);
+
+                if (rfInstance) {
+                  const node = nodes.find(n => n.id === table.name);
+                  if (node) {
+                    const width = node.width ?? 320;
+                    const height = node.height ?? 300;
+                    const x = node.position.x + width / 2;
+                    const y = node.position.y + height / 2;
+                    rfInstance.setCenter(x, y, { zoom: 0.3, duration: 800 });
+                  }
                 }
-              }
-            }}
-            onHoverTable={(tableName) => setHoveredNodeId(tableName)}
-          />
+              }}
+              onHoverTable={(tableName) => setHoveredNodeId(tableName)}
+            />
+          )}
 
           <CanvasLegend />
 
           {isPathfinderModalOpen && (
-            <PathfinderModal 
-              tables={tables} 
-              onClose={() => setIsPathfinderModalOpen(false)} 
+            <PathfinderModal
+              tables={tables}
+              onClose={() => setIsPathfinderModalOpen(false)}
               onFindPath={(source, target, strategy) => {
                 const result = findShortestJoinPath(source, target, tables, strategy);
                 if (result.found) {
@@ -735,15 +766,15 @@ function App() {
                 } else {
                   setError(`No relationship path found between ${source} and ${target}.`);
                 }
-              }} 
+              }}
             />
           )}
 
           {pathResult && pathResult.found && (
-            <PathfinderSQLPanel 
-              pathResult={pathResult} 
+            <PathfinderSQLPanel
+              pathResult={pathResult}
               tables={tables}
-              onClose={() => setPathResult(null)} 
+              onClose={() => setPathResult(null)}
             />
           )}
         </div>

@@ -17,22 +17,23 @@ interface DetailsPanelShellProps {
   onClose: () => void;
   isIsolatedMode?: boolean;
   onToggleIsolation?: () => void;
+  isMobile?: boolean;
 }
 
-export function DetailsPanelShell({ tables, selectedTable, activeTab, onTabChange, onClose, isIsolatedMode, onToggleIsolation }: DetailsPanelShellProps) {
+export function DetailsPanelShell({ tables, selectedTable, activeTab, onTabChange, onClose, isIsolatedMode, onToggleIsolation, isMobile }: DetailsPanelShellProps) {
   return (
     <div style={{
       position: 'absolute',
       top: '73px', // Below the header
       right: 0,
       bottom: 0,
-      width: '400px',
+      width: isMobile ? '300px' : '400px',
       backgroundColor: 'rgba(15, 23, 42, 0.95)',
       backdropFilter: 'blur(16px)',
       borderLeft: '1px solid #334155',
       boxShadow: '-10px 0 25px rgba(0,0,0,0.5)',
       zIndex: 100,
-      padding: '2rem',
+      padding: isMobile ? '1.5rem' : '2rem',
       display: 'flex',
       flexDirection: 'column',
       overflowY: 'auto'
