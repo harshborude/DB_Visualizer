@@ -134,7 +134,7 @@ export function PathfinderModal({ tables, onClose, onFindPath }: PathfinderModal
 
         <div style={{ marginBottom: '2rem' }}>
           <label style={{ display: 'block', color: '#cbd5e1', fontSize: '0.85rem', marginBottom: '0.5rem' }}>Pathfinding Strategy</label>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: strategy === 'indexed' ? '#10b981' : '#94a3b8', cursor: 'pointer', transition: 'color 0.2s', fontSize: '0.9rem' }}>
               <input 
                 type="radio" 
@@ -155,6 +155,22 @@ export function PathfinderModal({ tables, onClose, onFindPath }: PathfinderModal
               />
               Shortest Path (Fewer Joins)
             </label>
+          </div>
+
+          <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', padding: '0.75rem', borderRadius: '6px', border: '1px solid #334155', fontSize: '0.8rem', color: '#cbd5e1', lineHeight: '1.5' }}>
+            {strategy === 'indexed' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div><strong style={{ color: '#10b981' }}>When to use:</strong> Best for production queries or large datasets.</div>
+                <div style={{ color: '#94a3b8' }}>Prioritizes paths that leverage Primary Keys and explicitly Indexed columns for joining, ensuring fast execution.</div>
+                <div><strong style={{ color: '#f8fafc', textDecoration: 'underline' }}>Tradeoff:</strong> May result in a longer SQL query with more intermediate tables (extra JOIN clauses) to maintain index usage.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div><strong style={{ color: '#3b82f6' }}>When to use:</strong> Best for ad-hoc exploration or quick analytical queries.</div>
+                <div style={{ color: '#94a3b8' }}>Finds the most direct route with the absolute fewest number of table hops to keep your SQL query short.</div>
+                <div><strong style={{ color: '#f8fafc', textDecoration: 'underline' }}>Tradeoff:</strong> May join on unindexed columns, which can cause severe performance issues (full table scans) on large datasets.</div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 import type { AnalyzedTableData, GraphMetrics } from './graphAnalytics';
 import type { TableData, ColumnData, ForeignKey } from '../types/schema';
 
-export type SuggestionType = '1NF' | '3NF' | 'LOOKUP' | 'WIDE_TABLE' | 'REDUNDANT_FK';
+export type SuggestionType = '1NF' | 'LOOKUP' | 'WIDE_TABLE' | 'REDUNDANT_FK';
 
 export interface NormalizationSuggestion {
   type: SuggestionType;
@@ -52,40 +52,7 @@ export function generateNormalizationSuggestions(
     }
   });
 
-  // 3. 2NF/3NF: Check for Transitive Dependencies (Prefix groupings)
-  // Look for columns that share a common prefix which is NOT the table name.
-  // e.g. Table: Orders. Columns: customer_id, customer_name, customer_email
-  const commonPrefixes = new Map<string, string[]>();
-  const tableNameLower = table.name.toLowerCase();
 
-  table.columns.forEach(col => {
-    const parts = col.name.split('_');
-    if (parts.length > 1) {
-      const prefix = parts[0].toLowerCase();
-      // Ignore if the prefix is just the table name (e.g. user_id in users table)
-      if (prefix !== tableNameLower && !tableNameLower.startsWith(prefix) && !tableNameLower.endsWith(prefix)) {
-        if (!commonPrefixes.has(prefix)) commonPrefixes.set(prefix, []);
-        commonPrefixes.get(prefix)!.push(col.name);
-      }
-    }
-  });
-
-  commonPrefixes.forEach((cols, prefix) => {
-    // If 3 or more columns share a prefix, it's highly likely they belong in their own table.
-    // Or if 2 columns share a prefix and one of them is an "id" or "name".
-    if (cols.length >= 2) {
-      const hasIdOrName = cols.some(c => c.toLowerCase().endsWith('_id') || c.toLowerCase().endsWith('_name'));
-      if (cols.length >= 3 || hasIdOrName) {
-        suggestions.push({
-          type: '3NF',
-          title: 'Potential 3NF Violation (Mixed Domains)',
-          description: `Columns (${cols.join(', ')}) share the prefix '${prefix}'. This suggests they belong in a dedicated '${prefix}' table rather than being embedded here.`,
-          columns: cols,
-          penaltyScore: 5
-        });
-      }
-    }
-  });
 
   // 4. Lookup Tables: ENUM / Status extraction
   const lookupKeywords = ['status', 'type', 'category', 'role', 'state', 'priority'];
