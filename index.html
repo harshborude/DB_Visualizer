@@ -2,12 +2,69 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>erd</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    
+    <!-- Primary Meta Tags -->
+    <title>Free SQL to ER Diagram Visualizer | Interactive Database Schema Diagrams</title>
+    <meta name="title" content="Free SQL to ER Diagram Visualizer | Interactive Database Schema Diagrams" />
+    <meta name="description" content="Instantly visualize your SQL database schema. Drag and drop your SQLite, PostgreSQL, or MySQL files to generate beautiful, interactive Entity-Relationship Diagrams (ERD) completely free in your browser." />
+    <meta name="keywords" content="SQL, ERD, Entity-Relationship Diagram, Database Schema, Visualizer, Diagram Tool, PostgreSQL, SQLite, MySQL, Database Design, Schema Analyzer" />
+    <meta name="author" content="SQL ER Diagram Visualizer" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Free SQL to ER Diagram Visualizer" />
+    <meta property="og:description" content="Instantly visualize your SQL database schema. Drag and drop your SQL files to generate beautiful, interactive Entity-Relationship Diagrams completely free in your browser." />
+    <meta property="og:image" content="/og-image.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="Free SQL to ER Diagram Visualizer" />
+    <meta property="twitter:description" content="Instantly visualize your SQL database schema. Drag and drop your SQL files to generate beautiful, interactive Entity-Relationship Diagrams completely free in your browser." />
+    <meta property="twitter:image" content="/og-image.png" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "SQL to ER Diagram Visualizer",
+        "url": "https://dbvisualizer-omega.vercel.app/",
+        "description": "A free web-based tool to instantly convert SQL schema files into interactive, graphical Entity-Relationship Diagrams (ERD).",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "All",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Semantic HTML Fallback for SEO Crawlers -->
+      <main style="display: none;">
+        <h1>Free SQL to ER Diagram Visualizer</h1>
+        <p>Instantly transform your raw SQL files into interactive Database Schema Diagrams. Understand your architecture, optimize queries, and analyze table relationships for free.</p>
+        
+        <section>
+          <h2>Features</h2>
+          <ul>
+            <li><strong>Drag and Drop UI:</strong> Upload your SQLite, PostgreSQL, or MySQL `.sql` files instantly.</li>
+            <li><strong>Interactive Canvas:</strong> Pan, zoom, and explore connections in a fast, responsive React Flow interface.</li>
+            <li><strong>Pathfinder & Query Builder:</strong> Find shortest join paths between tables and visually construct optimized SQL queries.</li>
+            <li><strong>Schema Health Check:</strong> Automatically analyze your database for 1NF violations, missing keys, and optimization opportunities.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>How to use</h2>
+          <p>Simply drop your database export file into the dropzone. The application works entirely in your browser without uploading your sensitive schema to any server.</p>
+        </section>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
