@@ -17,6 +17,7 @@ import { calculateRowSize } from './utils/tableWeight'
 import type { ActiveTab } from './types/ui'
 import type { QueryBuilderState } from './utils/queryBuilder'
 import { QueryBuilderPanel } from './components/panel/QueryBuilderPanel';
+import { CanvasLegend } from './components/canvas/CanvasLegend';
 function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -718,6 +719,8 @@ function App() {
             }}
             onHoverTable={(tableName) => setHoveredNodeId(tableName)}
           />
+
+          <CanvasLegend />
 
           {isPathfinderModalOpen && (
             <PathfinderModal 
