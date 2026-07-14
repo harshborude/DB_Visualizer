@@ -71,21 +71,29 @@ function App() {
 
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(window.innerWidth >= 768);
 
-  const handleToggleColumn = useCallback((tableName: string, columnName: string) => {
+  const handleToggleColumn = useCallback((tableId: string, columnName: string) => {
     setQueryBuilderState(prev => {
-      const isSelected = prev.columns.some(c => c.tableName === tableName && c.columnName === columnName)
+      const isSelected = prev.columns.some(c => c.tableId === tableId && c.columnName === columnName)
       let newColumns = prev.columns
       if (isSelected) {
-        newColumns = prev.columns.filter(c => !(c.tableName === tableName && c.columnName === columnName))
+        newColumns = prev.columns.filter(c => !(c.tableId === tableId && c.columnName === columnName))
       } else {
-        newColumns = [...prev.columns, { tableName, columnName }]
+        newColumns = [...prev.columns, { tableId, columnName }]
       }
 
-      const newTables = Array.from(new Set([
-        ...newColumns.map(c => c.tableName),
-        ...prev.filters.map(f => f.tableName),
-        ...prev.sorts.map(s => s.tableName)
-      ]))
+      let newTables = prev.tables;
+      if (newColumns.length > prev.columns.length) {
+         if (!newTables.some(t => t.id === tableId)) {
+            newTables = [...newTables, { id: tableId, name: tableId }];
+         }
+      } else {
+         const hasColumns = newColumns.some(c => c.tableId === tableId);
+         const hasFilters = prev.filters.some(f => f.tableId === tableId);
+         const hasSorts = prev.sorts.some(s => s.tableId === tableId);
+         if (!hasColumns && !hasFilters && !hasSorts) {
+            newTables = newTables.filter(t => t.id !== tableId);
+         }
+      }
 
       return {
         ...prev,
@@ -95,29 +103,36 @@ function App() {
     })
   }, [])
 
-  const handleToggleTable = useCallback((tableName: string) => {
+  const handleToggleTable = useCallback((tableId: string, baseTableName: string) => {
     setQueryBuilderState(prev => {
-      const isSelected = prev.tables.includes(tableName)
+      const isSelected = prev.tables.some(t => t.id === tableId)
       let newTables = prev.tables
       let newColumns = prev.columns
 
       if (isSelected) {
         // Remove table and all its columns
-        newTables = prev.tables.filter(t => t !== tableName)
-        newColumns = prev.columns.filter(c => c.tableName !== tableName)
+        newTables = prev.tables.filter(t => t.id !== tableId)
+        newColumns = prev.columns.filter(c => c.tableId !== tableId)
       } else {
-        // Add table
-        newTables = [...prev.tables, tableName]
+        // Add table and all its columns
+        newTables = [...prev.tables, { id: tableId, name: baseTableName }]
+        const tableData = tables.find(t => t.name === baseTableName);
+        if (tableData) {
+          const existingCols = new Set(newColumns.filter(c => c.tableId === tableId).map(c => c.columnName));
+          const colsToAdd = tableData.columns
+            .filter(c => !existingCols.has(c.name))
+            .map(c => ({ tableId, columnName: c.name }));
+          newColumns = [...prev.columns, ...colsToAdd];
+        }
       }
 
-      // If table is removed, should we remove its filters/sorts? For now keep simple
       return {
         ...prev,
         tables: newTables,
         columns: newColumns
       }
     })
-  }, [])
+  }, [tables])
 
   const nodeTypes = useMemo(() => ({ table: TableNode }), []);
 
@@ -240,33 +255,68 @@ function App() {
     setPathResult(null);
   }
 
+  const qbNodes = useMemo(() => {
+    if (!isQueryBuilderMode) return nodes;
+
+    const aliasNodes: Node[] = [];
+    queryBuilderState.tables.forEach((t, i) => {
+       if (t.id !== t.name) {
+          const baseNode = nodes.find(n => n.id === t.name);
+          if (baseNode) {
+            aliasNodes.push({
+               ...baseNode,
+               id: t.id,
+               position: { x: baseNode.position.x + 80, y: baseNode.position.y + 80 }, 
+               data: { ...baseNode.data }
+            });
+          }
+       }
+    });
+    return [...nodes, ...aliasNodes];
+  }, [nodes, isQueryBuilderMode, queryBuilderState.tables]);
+
+  const qbEdges = useMemo(() => {
+    if (!isQueryBuilderMode) return edges;
+
+    const aliasEdges: Edge[] = [];
+    queryBuilderState.tables.forEach(t => {
+       if (t.id !== t.name) {
+          edges.forEach(e => {
+             if (e.source === t.name) aliasEdges.push({ ...e, id: `${e.id}-src-${t.id}`, source: t.id });
+             if (e.target === t.name) aliasEdges.push({ ...e, id: `${e.id}-tgt-${t.id}`, target: t.id });
+          });
+       }
+    });
+    return [...edges, ...aliasEdges];
+  }, [edges, isQueryBuilderMode, queryBuilderState.tables]);
+
   const styledNodes = useMemo(() => {
     const activeNodeId = hoveredNodeId || selectedTable?.name || null;
 
-    // Inject common query builder props
     const injectQbProps = (n: Node) => ({
       ...n.data,
+      tableId: n.id,
       isQueryBuilderMode,
-      selectedColumns: queryBuilderState.columns.filter(c => c.tableName === n.id).map(c => c.columnName),
-      isTableSelected: queryBuilderState.tables.includes(n.id),
+      selectedColumns: queryBuilderState.columns.filter(c => c.tableId === n.id).map(c => c.columnName),
+      isTableSelected: queryBuilderState.tables.some(t => t.id === n.id),
       onToggleColumn: handleToggleColumn,
       onToggleTable: handleToggleTable,
       isMobile,
       isIsolatedMode
     });
 
-    if (!activeNodeId && !hoveredEdgeId) return nodes.map(n => ({ ...n, data: { ...injectQbProps(n), isFaded: false, isHovered: false, isConnected: false } }));
+    if (!activeNodeId && !hoveredEdgeId) return qbNodes.map(n => ({ ...n, data: { ...injectQbProps(n), isFaded: false, isHovered: false, isConnected: false } }));
 
-    const activeEdge = edges.find(e => e.id === hoveredEdgeId);
+    const activeEdge = qbEdges.find(e => e.id === hoveredEdgeId);
 
-    return nodes.map(n => {
+    return qbNodes.map(n => {
       let isHovered = false;
       let isConnected = false;
       let isFaded = true;
 
       if (activeNodeId) {
         isHovered = n.id === activeNodeId;
-        isConnected = edges.some(e => (e.source === activeNodeId && e.target === n.id) || (e.target === activeNodeId && e.source === n.id));
+        isConnected = qbEdges.some(e => (e.source === activeNodeId && e.target === n.id) || (e.target === activeNodeId && e.source === n.id));
         isFaded = !isHovered && !isConnected;
       } else if (activeEdge) {
         isConnected = n.id === activeEdge.source || n.id === activeEdge.target;
@@ -283,11 +333,11 @@ function App() {
         }
       }
     });
-  }, [nodes, edges, hoveredNodeId, hoveredEdgeId, selectedTable, isQueryBuilderMode, queryBuilderState.columns, queryBuilderState.tables, handleToggleColumn, handleToggleTable]);
+  }, [qbNodes, qbEdges, hoveredNodeId, hoveredEdgeId, selectedTable, isQueryBuilderMode, queryBuilderState.columns, queryBuilderState.tables, handleToggleColumn, handleToggleTable]);
 
   const styledEdges = useMemo(() => {
     const activeNodeId = hoveredNodeId || selectedTable?.name || null;
-    if (!activeNodeId && !hoveredEdgeId) return edges.map(e => ({
+    if (!activeNodeId && !hoveredEdgeId) return qbEdges.map(e => ({
       ...e,
       style: { ...e.style, opacity: 1, stroke: '#94a3b8', strokeWidth: 3, zIndex: 0 },
       labelStyle: { ...(e.labelStyle as React.CSSProperties), opacity: 1 },
@@ -296,7 +346,7 @@ function App() {
       markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' }
     }));
 
-    return edges.map(e => {
+    return qbEdges.map(e => {
       let isConnected = false;
 
       if (activeNodeId) {
@@ -493,7 +543,7 @@ function App() {
           </h2>
 
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            {tables.length > 0 && (
+            {tables.length > 0 && !isQueryBuilderMode && (
               <button
                 onClick={() => setIsPathfinderModalOpen(true)}
                 style={{

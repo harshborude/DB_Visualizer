@@ -10,7 +10,7 @@ interface QueryBuilderPanelProps {
 }
 
 export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBuilderPanelProps) {
-  const [activeTab, setActiveTab] = useState<'columns' | 'filters' | 'sorts'>('columns');
+  const [activeTab, setActiveTab] = useState<'tables' | 'columns' | 'filters' | 'sorts'>('tables');
   const [sqlPreview, setSqlPreview] = useState<string>('');
   const [queryError, setQueryError] = useState<string | null>(null);
 
@@ -21,7 +21,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
       setQueryError(null);
     } catch (err) {
       if (err instanceof UnreachableTableError) {
-        setQueryError(`Cannot reach table '${err.tableName}'. Add a manual join or ensure tables are connected.`);
+        setQueryError(`Cannot reach table '${err.tableId}'. Add a manual join or ensure tables are connected.`);
       } else {
         setQueryError((err as Error).message);
       }
@@ -39,14 +39,14 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
 
   const addFilter = () => {
     if (state.tables.length === 0) return;
-    const firstTable = state.tables[0];
-    const firstCol = schema.find(t => t.name === firstTable)?.columns[0]?.name || '';
+    const firstTableInstance = state.tables[0];
+    const firstCol = schema.find(t => t.name === firstTableInstance.name)?.columns[0]?.name || '';
     
     setState(prev => ({
       ...prev,
       filters: [
         ...prev.filters,
-        { id: Math.random().toString(36).substring(7), tableName: firstTable, columnName: firstCol, operator: '=', value: '' }
+        { id: Math.random().toString(36).substring(7), tableId: firstTableInstance.id, columnName: firstCol, operator: '=', value: '' }
       ]
     }));
   };
@@ -69,14 +69,14 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
 
   const addSort = () => {
     if (state.tables.length === 0) return;
-    const firstTable = state.tables[0];
-    const firstCol = schema.find(t => t.name === firstTable)?.columns[0]?.name || '';
+    const firstTableInstance = state.tables[0];
+    const firstCol = schema.find(t => t.name === firstTableInstance.name)?.columns[0]?.name || '';
 
     setState(prev => ({
       ...prev,
       sorts: [
         ...prev.sorts,
-        { tableName: firstTable, columnName: firstCol, direction: 'ASC' }
+        { tableId: firstTableInstance.id, columnName: firstCol, direction: 'ASC' }
       ]
     }));
   };
@@ -98,8 +98,8 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
   };
 
   const availableColumns = state.tables.flatMap(t => {
-    const tableData = schema.find(s => s.name === t);
-    return tableData ? tableData.columns.map(c => ({ table: t, column: c.name })) : [];
+    const tableData = schema.find(s => s.name === t.name);
+    return tableData ? tableData.columns.map(c => ({ tableId: t.id, tableName: t.name, column: c.name })) : [];
   });
 
   return (
@@ -143,7 +143,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '1rem', borderBottom: '1px solid #222222', display: 'flex', gap: '1rem' }}>
-          {(['columns', 'filters', 'sorts'] as const).map(tab => (
+          {(['tables', 'columns', 'filters', 'sorts'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -160,7 +160,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
                 transition: 'all 0.2s'
               }}
             >
-              {tab} {tab === 'columns' ? `(${state.columns.length})` : tab === 'filters' ? `(${state.filters.length})` : `(${state.sorts.length})`}
+              {tab} {tab === 'tables' ? `(${state.tables.length})` : tab === 'columns' ? `(${state.columns.length})` : tab === 'filters' ? `(${state.filters.length})` : `(${state.sorts.length})`}
             </button>
           ))}
         </div>
@@ -172,12 +172,39 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
             </div>
           ) : (
             <>
+              {activeTab === 'tables' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {state.tables.map((t) => (
+                    <div key={t.id} style={{ backgroundColor: '#111111', padding: '0.75rem', borderRadius: '8px', border: '1px solid #333333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: 500 }}>
+                        {t.name} <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>({t.id})</span>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const numInstances = state.tables.filter(st => st.name === t.name).length;
+                          const newId = `${t.name}_${numInstances + 1}`;
+                          setState(prev => ({
+                            ...prev,
+                            tables: [...prev.tables, { id: newId, name: t.name }]
+                          }));
+                        }}
+                        style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '0.4rem 0.75rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', transition: 'all 0.2s' }}
+                        onMouseOver={e => e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.2)'}
+                        onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)'}
+                      >
+                        Self Join
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {activeTab === 'columns' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {state.columns.map((col, idx) => (
                     <div key={idx} style={{ backgroundColor: '#111111', padding: '0.75rem', borderRadius: '8px', border: '1px solid #333333' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <span style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: 500 }}>{col.tableName}.{col.columnName}</span>
+                        <span style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: 500 }}>{col.tableId}.{col.columnName}</span>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <select
@@ -214,16 +241,16 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
                     <div key={filter.id} style={{ backgroundColor: '#111111', padding: '0.75rem', borderRadius: '8px', border: '1px solid #333333', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <select
-                          value={`${filter.tableName}.${filter.columnName}`}
+                          value={`${filter.tableId}.${filter.columnName}`}
                           onChange={(e) => {
-                            const [tableName, columnName] = e.target.value.split('.');
-                            updateFilter(idx, { tableName, columnName });
+                            const [tableId, columnName] = e.target.value.split('.');
+                            updateFilter(idx, { tableId, columnName });
                           }}
                           style={{ flex: 1, backgroundColor: '#000000', color: '#e5e7eb', border: '1px solid #333333', borderRadius: '4px', padding: '0.25rem', fontSize: '0.8rem' }}
                         >
                           {availableColumns.map(ac => (
-                            <option key={`${ac.table}.${ac.column}`} value={`${ac.table}.${ac.column}`}>
-                              {ac.table}.{ac.column}
+                            <option key={`${ac.tableId}.${ac.column}`} value={`${ac.tableId}.${ac.column}`}>
+                              {ac.tableId}.{ac.column}
                             </option>
                           ))}
                         </select>
@@ -267,16 +294,16 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
                   {state.sorts.map((sort, idx) => (
                     <div key={idx} style={{ backgroundColor: '#111111', padding: '0.75rem', borderRadius: '8px', border: '1px solid #333333', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       <select
-                        value={`${sort.tableName}.${sort.columnName}`}
+                        value={`${sort.tableId}.${sort.columnName}`}
                         onChange={(e) => {
-                          const [tableName, columnName] = e.target.value.split('.');
-                          updateSort(idx, { tableName, columnName });
+                          const [tableId, columnName] = e.target.value.split('.');
+                          updateSort(idx, { tableId, columnName });
                         }}
                         style={{ flex: 1, backgroundColor: '#000000', color: '#e5e7eb', border: '1px solid #333333', borderRadius: '4px', padding: '0.25rem', fontSize: '0.8rem' }}
                       >
                         {availableColumns.map(ac => (
-                          <option key={`${ac.table}.${ac.column}`} value={`${ac.table}.${ac.column}`}>
-                            {ac.table}.{ac.column}
+                          <option key={`${ac.tableId}.${ac.column}`} value={`${ac.tableId}.${ac.column}`}>
+                            {ac.tableId}.{ac.column}
                           </option>
                         ))}
                       </select>

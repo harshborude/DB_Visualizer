@@ -1,8 +1,8 @@
 import { Handle, Position } from 'reactflow';
 import type { TableData } from '../../types/schema';
 
-export function TableNode({ data }: { data: { table: TableData, isHovered?: boolean, isConnected?: boolean, isFaded?: boolean, isImplicitView?: boolean, isQueryBuilderMode?: boolean, selectedColumns?: string[], isTableSelected?: boolean, onToggleColumn?: (t: string, c: string) => void, onToggleTable?: (t: string) => void, isMobile?: boolean, isIsolatedMode?: boolean } }) {
-  const { table, isHovered, isConnected, isFaded, isImplicitView, isQueryBuilderMode, selectedColumns = [], isTableSelected = false, onToggleColumn, onToggleTable, isMobile, isIsolatedMode } = data;
+export function TableNode({ data }: { data: { table: TableData, tableId?: string, isHovered?: boolean, isConnected?: boolean, isFaded?: boolean, isImplicitView?: boolean, isQueryBuilderMode?: boolean, selectedColumns?: string[], isTableSelected?: boolean, onToggleColumn?: (tId: string, c: string) => void, onToggleTable?: (tId: string, baseName: string) => void, isMobile?: boolean, isIsolatedMode?: boolean } }) {
+  const { table, tableId = table.name, isHovered, isConnected, isFaded, isImplicitView, isQueryBuilderMode, selectedColumns = [], isTableSelected = false, onToggleColumn, onToggleTable, isMobile, isIsolatedMode } = data;
   
   const isCollapsed = isMobile && !isIsolatedMode;
   
@@ -39,8 +39,8 @@ export function TableNode({ data }: { data: { table: TableData, isHovered?: bool
           <input 
             type="checkbox" 
             checked={isTableSelected}
-            onChange={() => onToggleTable?.(table.name)}
-            style={{ marginRight: '0.75rem', transform: 'scale(1.2)', cursor: 'pointer', accentColor: '#38bdf8' }}
+            onChange={() => onToggleTable?.(tableId, table.name)}
+            style={{ marginRight: '1rem', transform: 'scale(1.8)', cursor: 'pointer', accentColor: '#38bdf8' }}
           />
         )}
         <h3 style={{ margin: 0, color: '#f1f5f9', fontSize: '1.4rem', letterSpacing: '0.025em', textAlign: 'center' }}>{table.name}</h3>
@@ -58,8 +58,8 @@ export function TableNode({ data }: { data: { table: TableData, isHovered?: bool
                   <input 
                     type="checkbox" 
                     checked={selectedColumns.includes(col.name)}
-                    onChange={() => onToggleColumn?.(table.name, col.name)}
-                    style={{ marginRight: '0.5rem', cursor: 'pointer', accentColor: '#38bdf8' }}
+                    onChange={() => onToggleColumn?.(tableId, col.name)}
+                    style={{ marginRight: '0.75rem', transform: 'scale(1.4)', cursor: 'pointer', accentColor: '#38bdf8' }}
                   />
                 )}
                 <strong style={{ color: '#f8fafc', fontWeight: '500' }}>{col.name}</strong> 

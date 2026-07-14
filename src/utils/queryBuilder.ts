@@ -1,8 +1,13 @@
 import { buildJoinGraph, type JoinEdge } from './pathfinder';
 import type { AnalyzedTableData } from './graphAnalytics';
 
+export interface QueryTable {
+  id: string; // The alias/unique ID for this instance (e.g. "users_1")
+  name: string; // The base table name (e.g. "users")
+}
+
 export interface QueryColumn {
-  tableName: string;
+  tableId: string;
   columnName: string;
   alias?: string;
   func?: 'COUNT' | 'SUM' | 'AVG' | 'MAX' | 'MIN';
@@ -10,27 +15,27 @@ export interface QueryColumn {
 
 export interface QueryFilter {
   id: string;
-  tableName: string;
+  tableId: string;
   columnName: string;
   operator: '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN';
   value: string;
 }
 
 export interface QuerySort {
-  tableName: string;
+  tableId: string;
   columnName: string;
   direction: 'ASC' | 'DESC';
 }
 
 export interface ManualJoin {
-  sourceTable: string;
+  sourceTableId: string;
   sourceColumn: string;
-  targetTable: string;
+  targetTableId: string;
   targetColumn: string;
 }
 
 export interface QueryBuilderState {
-  tables: string[];
+  tables: QueryTable[];
   columns: QueryColumn[];
   filters: QueryFilter[];
   sorts: QuerySort[];
@@ -38,11 +43,11 @@ export interface QueryBuilderState {
 }
 
 export class UnreachableTableError extends Error {
-  public tableName: string;
-  constructor(tableName: string) {
-    super(`No relationship found connecting table '${tableName}' to the active query.`);
+  public tableId: string;
+  constructor(tableId: string) {
+    super(`No relationship found connecting table instance '${tableId}' to the active query.`);
     this.name = 'UnreachableTableError';
-    this.tableName = tableName;
+    this.tableId = tableId;
   }
 }
 
@@ -51,19 +56,19 @@ export class UnreachableTableError extends Error {
  * Throws UnreachableTableError if a table cannot be reached and no manual join is provided.
  */
 export function buildQuerySpanningTree(
-  selectedTables: string[],
+  selectedTables: QueryTable[],
   schema: AnalyzedTableData[],
   manualJoins: ManualJoin[]
 ): JoinEdge[] {
   if (selectedTables.length <= 1) return [];
 
   const graph = buildJoinGraph(schema);
-  const activeGroup = new Set<string>([selectedTables[0]]);
+  const activeGroup = new Set<string>([selectedTables[0].id]);
   const collectedEdges: JoinEdge[] = [];
 
   for (let i = 1; i < selectedTables.length; i++) {
     const targetTable = selectedTables[i];
-    if (activeGroup.has(targetTable)) continue;
+    if (activeGroup.has(targetTable.id)) continue;
 
     // Multi-source BFS to find shortest path from ANY table in activeGroup to targetTable
     const queue: string[] = Array.from(activeGroup);
@@ -73,25 +78,58 @@ export function buildQuerySpanningTree(
     let pathFound = false;
 
     while (queue.length > 0) {
-      const currentTable = queue.shift()!;
-      if (currentTable === targetTable) {
+      const currentTableId = queue.shift()!;
+      if (currentTableId === targetTable.id) {
         pathFound = true;
         break;
       }
       
-      const neighbors = graph.get(currentTable) || [];
+      const currentTableInfo = selectedTables.find(t => t.id === currentTableId);
+      if (!currentTableInfo) continue;
+
+      const neighbors = graph.get(currentTableInfo.name) || [];
       for (const edge of neighbors) {
-        if (!visited.has(edge.toTable)) {
-          visited.add(edge.toTable);
-          parentEdge.set(edge.toTable, edge);
-          queue.push(edge.toTable);
+        // Find all selected instances of the target base table
+        const matchingInstances = selectedTables.filter(t => t.name === edge.toTable);
+        
+        // If there are no matching instances selected, we could potentially spawn intermediate nodes
+        // BUT currently, query builder spanning tree only connects existing selected tables directly.
+        // Wait, if it traverses through UNSELECTED tables, what happens?
+        // Ah, the original code traversed through unselected tables by using the base table name!
+        // We need to allow traversing through unselected base tables.
+        
+        if (matchingInstances.length > 0) {
+          for (const instance of matchingInstances) {
+             if (!visited.has(instance.id)) {
+                visited.add(instance.id);
+                parentEdge.set(instance.id, {
+                  ...edge,
+                  fromTable: currentTableId,
+                  toTable: instance.id
+                });
+                queue.push(instance.id);
+             }
+          }
+        } else {
+          // It's an unselected table, we can traverse through it. We'll use its base name as its ID
+          // to represent the intermediate hop.
+          const unselectedId = edge.toTable;
+          if (!visited.has(unselectedId)) {
+            visited.add(unselectedId);
+            parentEdge.set(unselectedId, {
+              ...edge,
+              fromTable: currentTableId,
+              toTable: unselectedId
+            });
+            queue.push(unselectedId);
+          }
         }
       }
     }
 
     if (pathFound) {
       // Backtrack to build the path
-      let curr = targetTable;
+      let curr = targetTable.id;
       const pathEdges: JoinEdge[] = [];
       while (!activeGroup.has(curr)) {
         const edge = parentEdge.get(curr)!;
@@ -115,36 +153,34 @@ export function buildQuerySpanningTree(
       // Try to resolve via manual joins
       let manualEdgeFound = false;
       for (const mj of manualJoins) {
-        // Source is in active group, target is the disconnected table
-        if (mj.targetTable === targetTable && activeGroup.has(mj.sourceTable)) {
+        if (mj.targetTableId === targetTable.id && activeGroup.has(mj.sourceTableId)) {
           collectedEdges.push({
-            fromTable: mj.sourceTable,
-            toTable: mj.targetTable,
+            fromTable: mj.sourceTableId,
+            toTable: mj.targetTableId,
             fromColumns: [mj.sourceColumn],
             toColumns: [mj.targetColumn],
             direction: 'forward'
           });
-          activeGroup.add(targetTable);
+          activeGroup.add(targetTable.id);
           manualEdgeFound = true;
           break;
         }
-        // Target is in active group, source is the disconnected table
-        if (mj.sourceTable === targetTable && activeGroup.has(mj.targetTable)) {
+        if (mj.sourceTableId === targetTable.id && activeGroup.has(mj.targetTableId)) {
            collectedEdges.push({
-            fromTable: mj.targetTable,
-            toTable: mj.sourceTable,
+            fromTable: mj.targetTableId,
+            toTable: mj.sourceTableId,
             fromColumns: [mj.targetColumn],
             toColumns: [mj.sourceColumn],
             direction: 'backward'
           });
-          activeGroup.add(targetTable);
+          activeGroup.add(targetTable.id);
           manualEdgeFound = true;
           break;
         }
       }
       
       if (!manualEdgeFound) {
-        throw new UnreachableTableError(targetTable);
+        throw new UnreachableTableError(targetTable.id);
       }
     }
   }
@@ -161,7 +197,7 @@ export function compileQuery(state: QueryBuilderState, schema: AnalyzedTableData
     sql += '  *\n';
   } else {
     const cols = state.columns.map(c => {
-      let colStr = `${c.tableName}.${c.columnName}`;
+      let colStr = `${c.tableId}.${c.columnName}`;
       if (c.func) colStr = `${c.func}(${colStr})`;
       if (c.alias) colStr += ` AS "${c.alias}"`;
       return `  ${colStr}`;
@@ -170,7 +206,7 @@ export function compileQuery(state: QueryBuilderState, schema: AnalyzedTableData
   }
 
   const baseTable = state.tables[0];
-  sql += `FROM ${baseTable}\n`;
+  sql += `FROM ${baseTable.name} ${baseTable.id}\n`;
 
   if (state.tables.length > 1) {
     let edges: JoinEdge[] = [];
@@ -183,32 +219,35 @@ export function compileQuery(state: QueryBuilderState, schema: AnalyzedTableData
       throw e;
     }
 
-    // Determine JOIN ordering based on connected components
-    const joinedTables = new Set<string>([baseTable]);
+    const joinedTables = new Set<string>([baseTable.id]);
     const pendingEdges = [...edges];
 
     while (pendingEdges.length > 0) {
       const idx = pendingEdges.findIndex(e => joinedTables.has(e.fromTable) || joinedTables.has(e.toTable));
       if (idx === -1) {
-        // Failsafe: Should not happen if buildQuerySpanningTree is correct
-        break;
+        break; 
       }
       
       const edge = pendingEdges.splice(idx, 1)[0];
-      let joinTarget = '';
+      let joinTargetId = '';
       let condition = '';
       
       if (joinedTables.has(edge.fromTable)) {
-        joinTarget = edge.toTable;
+        joinTargetId = edge.toTable;
         condition = edge.fromColumns.map((col, i) => `${edge.fromTable}.${col} = ${edge.toTable}.${edge.toColumns[i]}`).join(' AND ');
       } else {
-        joinTarget = edge.fromTable;
+        joinTargetId = edge.fromTable;
         condition = edge.toColumns.map((col, i) => `${edge.toTable}.${col} = ${edge.fromTable}.${edge.fromColumns[i]}`).join(' AND ');
       }
       
-      if (!joinedTables.has(joinTarget)) {
-        sql += `JOIN ${joinTarget}\n  ON ${condition}\n`;
-        joinedTables.add(joinTarget);
+      if (!joinedTables.has(joinTargetId)) {
+        // Join target might be a selected alias, or an unselected base table hop
+        const selectedInstance = state.tables.find(t => t.id === joinTargetId);
+        const joinTargetName = selectedInstance ? selectedInstance.name : joinTargetId;
+        const alias = selectedInstance ? joinTargetId : joinTargetId;
+        
+        sql += `JOIN ${joinTargetName} ${alias}\n  ON ${condition}\n`;
+        joinedTables.add(joinTargetId);
       }
     }
   }
@@ -223,14 +262,14 @@ export function compileQuery(state: QueryBuilderState, schema: AnalyzedTableData
       } else if (isNaN(Number(val))) {
         val = `'${val}'`;
       }
-      return `${prefix}${f.tableName}.${f.columnName} ${f.operator} ${val}`;
+      return `${prefix}${f.tableId}.${f.columnName} ${f.operator} ${val}`;
     });
     sql += filters.join('\n') + '\n';
   }
 
   if (state.sorts.length > 0) {
     sql += 'ORDER BY\n';
-    const sorts = state.sorts.map(s => `  ${s.tableName}.${s.columnName} ${s.direction}`);
+    const sorts = state.sorts.map(s => `  ${s.tableId}.${s.columnName} ${s.direction}`);
     sql += sorts.join(',\n') + '\n';
   }
 
