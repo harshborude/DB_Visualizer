@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
-import type { QueryBuilderState } from '../utils/queryBuilder';
+import { useState, useCallback, useEffect } from 'react';
+import type { QueryBuilderState, QueryTable } from '../utils/queryBuilder';
+import { findOptimalQuerySpanningTree } from '../utils/queryBuilder';
 import type { AnalyzedTableData } from '../utils/graphAnalytics';
 
 export function useQueryBuilderMode(tables: AnalyzedTableData[]) {
@@ -11,6 +12,39 @@ export function useQueryBuilderMode(tables: AnalyzedTableData[]) {
     sorts: [],
     manualJoins: []
   });
+
+  const [optimizedTableOrder, setOptimizedTableOrder] = useState<QueryTable[] | null>(null);
+  const [alternateTableOrders, setAlternateTableOrders] = useState<QueryTable[][]>([]);
+
+  useEffect(() => {
+    if (queryBuilderState.tables.length > 2) {
+      const result = findOptimalQuerySpanningTree(queryBuilderState.tables, tables, queryBuilderState.manualJoins);
+      setOptimizedTableOrder(result.optimizedOrder);
+      setAlternateTableOrders(result.alternateOrders);
+    } else {
+      setOptimizedTableOrder(null);
+      setAlternateTableOrders([]);
+    }
+  }, [queryBuilderState.tables, queryBuilderState.manualJoins, tables]);
+
+  const applyOptimizedPath = useCallback(() => {
+    if (optimizedTableOrder) {
+      setQueryBuilderState(prev => ({
+        ...prev,
+        tables: optimizedTableOrder
+      }));
+    }
+  }, [optimizedTableOrder]);
+
+  const cycleAlternatePath = useCallback(() => {
+    if (alternateTableOrders.length > 0) {
+      setQueryBuilderState(prev => ({
+        ...prev,
+        tables: alternateTableOrders[0]
+      }));
+    }
+  }, [alternateTableOrders]);
+
 
   const handleToggleColumn = useCallback((tableId: string, columnName: string) => {
     setQueryBuilderState(prev => {
@@ -85,6 +119,10 @@ export function useQueryBuilderMode(tables: AnalyzedTableData[]) {
     queryBuilderState,
     setQueryBuilderState,
     handleToggleColumn,
-    handleToggleTable
+    handleToggleTable,
+    optimizedTableOrder,
+    alternateTableOrders,
+    applyOptimizedPath,
+    cycleAlternatePath
   };
 }

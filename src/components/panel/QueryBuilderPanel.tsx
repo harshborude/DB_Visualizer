@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { AnalyzedTableData } from '../../utils/graphAnalytics';
-import { type QueryBuilderState, compileQuery, UnreachableTableError, type QueryColumn, type QueryFilter, type QuerySort } from '../../utils/queryBuilder';
+import { type QueryBuilderState, compileQuery, UnreachableTableError, type QueryColumn, type QueryFilter, type QuerySort, type QueryTable } from '../../utils/queryBuilder';
 
 interface QueryBuilderPanelProps {
   schema: AnalyzedTableData[];
@@ -9,9 +9,16 @@ interface QueryBuilderPanelProps {
   onClose: () => void;
   isIsolatedMode: boolean;
   onToggleIsolation: () => void;
+  optimizedTableOrder?: QueryTable[] | null;
+  alternateTableOrders?: QueryTable[][];
+  applyOptimizedPath?: () => void;
+  cycleAlternatePath?: () => void;
 }
 
-export function QueryBuilderPanel({ schema, state, setState, onClose, isIsolatedMode, onToggleIsolation }: QueryBuilderPanelProps) {
+export function QueryBuilderPanel({
+  schema, state, setState, onClose, isIsolatedMode, onToggleIsolation,
+  optimizedTableOrder, alternateTableOrders, applyOptimizedPath, cycleAlternatePath
+}: QueryBuilderPanelProps) {
   const [activeTab, setActiveTab] = useState<'tables' | 'columns' | 'filters' | 'sorts'>('tables');
   const [sqlPreview, setSqlPreview] = useState<string>('');
   const [queryError, setQueryError] = useState<string | null>(null);
@@ -43,7 +50,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose, isIsolated
     if (state.tables.length === 0) return;
     const firstTableInstance = state.tables[0];
     const firstCol = schema.find(t => t.name === firstTableInstance.name)?.columns[0]?.name || '';
-    
+
     setState(prev => ({
       ...prev,
       filters: [
@@ -127,7 +134,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose, isIsolated
           <span style={{ color: '#ffffff' }}>Query Builder</span>
         </h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button 
+          <button
             onClick={onToggleIsolation}
             style={{ background: isIsolatedMode ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: isIsolatedMode ? '#10b981' : '#6b7280', border: isIsolatedMode ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #333', padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
             title={isIsolatedMode ? "Show All Tables on Canvas" : "Isolate Selected Tables on Canvas"}
@@ -135,7 +142,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose, isIsolated
             {isIsolatedMode ? 'Show All' : 'Isolate'}
           </button>
           {state.tables.length > 0 && (
-            <button 
+            <button
               onClick={() => setState({ tables: [], columns: [], filters: [], sorts: [], manualJoins: [] })}
               style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.2s' }}
               title="Clear all selections"
@@ -183,12 +190,28 @@ export function QueryBuilderPanel({ schema, state, setState, onClose, isIsolated
             <>
               {activeTab === 'tables' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {optimizedTableOrder && applyOptimizedPath && (
+                    <button
+                      onClick={applyOptimizedPath}
+                      style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                    >
+                      ✨ Optimize Join Path
+                    </button>
+                  )}
+                  {alternateTableOrders && alternateTableOrders.length > 0 && cycleAlternatePath && (
+                    <button
+                      onClick={cycleAlternatePath}
+                      style={{ background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                    >
+                      🔄 Show Alternate Path
+                    </button>
+                  )}
                   {state.tables.map((t) => (
                     <div key={t.id} style={{ backgroundColor: '#111111', padding: '0.75rem', borderRadius: '8px', border: '1px solid #333333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: 500 }}>
                         {t.name} <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>({t.id})</span>
                       </div>
-                      <button 
+                      <button
                         onClick={() => {
                           const numInstances = state.tables.filter(st => st.name === t.name).length;
                           const newId = `${t.name}_${numInstances + 1}`;
@@ -342,7 +365,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose, isIsolated
       {/* SQL Preview Footer */}
       <div style={{ padding: '1rem', borderTop: '1px solid #222222', backgroundColor: '#000000' }}>
         <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.75rem', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>SQL Preview</h4>
-        
+
         {queryError ? (
           <div style={{ color: '#ef4444', fontSize: '0.85rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
             <strong style={{ display: 'block', marginBottom: '0.25rem' }}>Error generating query:</strong>
@@ -354,7 +377,7 @@ export function QueryBuilderPanel({ schema, state, setState, onClose, isIsolated
               <code>{sqlPreview || '-- Select tables and columns'}</code>
             </pre>
             {sqlPreview && (
-              <button 
+              <button
                 onClick={() => navigator.clipboard.writeText(sqlPreview)}
                 style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: '#222222', border: '1px solid #333333', color: '#e5e7eb', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', transition: 'background 0.2s' }}
                 onMouseOver={e => e.currentTarget.style.background = '#333333'}

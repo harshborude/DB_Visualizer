@@ -47,7 +47,9 @@ function App() {
   const {
     isQueryBuilderMode, setIsQueryBuilderMode,
     queryBuilderState, setQueryBuilderState,
-    handleToggleColumn, handleToggleTable
+    handleToggleColumn, handleToggleTable,
+    optimizedTableOrder, alternateTableOrders,
+    applyOptimizedPath, cycleAlternatePath
   } = useQueryBuilderMode(tables);
 
   const {
@@ -174,6 +176,10 @@ function App() {
               onClose={() => setIsQueryBuilderMode(false)}
               isIsolatedMode={isIsolatedMode}
               onToggleIsolation={() => setIsIsolatedMode(prev => !prev)}
+              optimizedTableOrder={optimizedTableOrder}
+              alternateTableOrders={alternateTableOrders}
+              applyOptimizedPath={applyOptimizedPath}
+              cycleAlternatePath={cycleAlternatePath}
             />
           )}
 

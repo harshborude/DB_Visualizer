@@ -194,6 +194,97 @@ export function buildQuerySpanningTree(
   return collectedEdges;
 }
 
+export interface OptimalPathResult {
+  minEdges: number;
+  optimizedOrder: QueryTable[] | null;
+  alternateOrders: QueryTable[][];
+}
+
+export function findOptimalQuerySpanningTree(
+  selectedTables: QueryTable[],
+  schema: AnalyzedTableData[],
+  manualJoins: ManualJoin[]
+): OptimalPathResult {
+  if (selectedTables.length <= 1) {
+    return { minEdges: 0, optimizedOrder: null, alternateOrders: [] };
+  }
+
+  let currentEdges = 0;
+  let currentTreeStr = '';
+  try {
+    const currentTree = buildQuerySpanningTree(selectedTables, schema, manualJoins);
+    currentEdges = currentTree.length;
+    currentTreeStr = currentTree.map(e => [e.fromTable, e.toTable].sort().join('-')).sort().join(',');
+  } catch (e) {
+    return { minEdges: 0, optimizedOrder: null, alternateOrders: [] };
+  }
+
+  const generatePermutations = (arr: QueryTable[]): QueryTable[][] => {
+    if (arr.length <= 1) return [arr];
+    const perms: QueryTable[][] = [];
+    for (let i = 0; i < arr.length; i++) {
+      const current = arr[i];
+      const remaining = [...arr.slice(0, i), ...arr.slice(i + 1)];
+      const remainingPerms = generatePermutations(remaining);
+      for (const p of remainingPerms) {
+        perms.push([current, ...p]);
+      }
+    }
+    return perms;
+  };
+
+  const permsToTry = selectedTables.length <= 6 
+    ? generatePermutations(selectedTables) 
+    : [selectedTables, ...selectedTables.map((_, i) => {
+        if (i === 0) return selectedTables;
+        const arr = [...selectedTables];
+        const temp = arr[0];
+        arr[0] = arr[i];
+        arr[i] = temp;
+        return arr;
+      }).slice(1)];
+
+  let minEdges = currentEdges;
+  let optimalOrders: QueryTable[][] = [];
+  const seenTopology = new Set<string>([currentTreeStr]);
+
+  for (const perm of permsToTry) {
+    try {
+      const tree = buildQuerySpanningTree(perm, schema, manualJoins);
+      const edgeCount = tree.length;
+      const treeStr = tree.map(e => [e.fromTable, e.toTable].sort().join('-')).sort().join(',');
+
+      if (edgeCount < minEdges) {
+        minEdges = edgeCount;
+        optimalOrders = [perm];
+        seenTopology.clear();
+        seenTopology.add(currentTreeStr);
+        seenTopology.add(treeStr);
+      } else if (edgeCount === minEdges) {
+        if (!seenTopology.has(treeStr)) {
+          optimalOrders.push(perm);
+          seenTopology.add(treeStr);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  let optimizedOrder: QueryTable[] | null = null;
+  let alternateOrders: QueryTable[][] = [];
+
+  if (minEdges < currentEdges) {
+    optimizedOrder = optimalOrders.length > 0 ? optimalOrders[0] : null;
+    alternateOrders = optimalOrders.slice(1);
+  } else {
+    alternateOrders = optimalOrders;
+  }
+
+  return { minEdges, optimizedOrder, alternateOrders };
+}
+
+
 export function compileQuery(state: QueryBuilderState, schema: AnalyzedTableData[]): string {
   if (state.tables.length === 0) return '';
 
