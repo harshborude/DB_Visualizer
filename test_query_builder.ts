@@ -12,9 +12,13 @@ async function run() {
 
   // Test State
   const state: QueryBuilderState = {
-    tables: ['customer', 'store', 'fake_table'], 
+    tables: [
+      { id: 'customer_1', name: 'customer' },
+      { id: 'store_1', name: 'store' },
+      { id: 'fake_table_1', name: 'fake_table' }
+    ], 
     columns: [
-      { tableName: 'customer', columnName: 'first_name' }
+      { tableId: 'customer_1', columnName: 'first_name' }
     ],
     filters: [],
     sorts: [],
