@@ -13,6 +13,7 @@ import { PathfinderSQLPanel } from './components/panel/PathfinderSQLPanel'
 import { QueryBuilderPanel } from './components/panel/QueryBuilderPanel'
 import { CanvasLegend } from './components/canvas/CanvasLegend'
 import { AppHeader } from './components/layout/AppHeader'
+import { CrowsFootEdge } from './components/canvas/CrowsFootEdge'
 import { findShortestJoinPath } from './utils/pathfinder'
 import { useIsMobile } from './hooks/useIsMobile'
 import type { ActiveTab } from './types/ui'
@@ -64,6 +65,7 @@ function App() {
   });
 
   const nodeTypes = useMemo(() => ({ table: TableNode }), []);
+  const edgeTypes = useMemo(() => ({ 'crows-foot': CrowsFootEdge }), []);
 
   useEffect(() => {
     if (rfInstance) {
@@ -123,6 +125,7 @@ function App() {
             onNodesChange={handleNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
             onNodeMouseLeave={() => setHoveredNodeId(null)}
             onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}

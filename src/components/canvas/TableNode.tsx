@@ -57,7 +57,11 @@ export function TableNode({ data }: { data: { table: TableData, tableId?: string
           const isPrimaryKey = table.primaryKeys?.includes(col.name)
           const isExplicitIndex = table.indexes?.some(idxCols => idxCols.includes(col.name))
           return (
-            <li key={col.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <li key={col.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
+              <Handle type="target" position={Position.Left} id={`${col.name}-left-target`} style={{ left: '-1.25rem', opacity: 0 }} />
+              <Handle type="source" position={Position.Left} id={`${col.name}-left-source`} style={{ left: '-1.25rem', opacity: 0 }} />
+              <Handle type="target" position={Position.Right} id={`${col.name}-right-target`} style={{ right: '-1.25rem', opacity: 0 }} />
+              <Handle type="source" position={Position.Right} id={`${col.name}-right-source`} style={{ right: '-1.25rem', opacity: 0 }} />
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 {isQueryBuilderMode && (
                   <input 

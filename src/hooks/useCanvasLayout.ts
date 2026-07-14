@@ -46,14 +46,14 @@ export function useCanvasLayout(
           id: `${table.name}-${fk.targetTable}-${fkIdx}`,
           source: table.name,
           target: fk.targetTable,
+          // We connect from the FIRST column in the foreign key to the FIRST column in the target primary key
+          sourceHandle: `${fk.columnNames[0]}-right-source`,
+          targetHandle: `${fk.targetColumnNames[0]}-left-target`,
+          type: 'crows-foot',
           label: `${fk.columnNames.join(', ')} → ${fk.targetColumnNames.join(', ')}`,
           labelBgStyle: { fill: '#1e293b', stroke: '#334155', strokeWidth: 1, rx: 4, ry: 4 },
           labelStyle: { fill: '#cbd5e1', fontSize: 10, fontWeight: 500, fontFamily: 'monospace' },
-          data: { isImplicit: fk.isImplicit },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: '#94a3b8' // Bolder, whiter slate-400
-          },
+          data: { isImplicit: fk.isImplicit, relationType: fk.relationType },
           style: {
             stroke: '#94a3b8',
             strokeWidth: 3

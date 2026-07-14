@@ -64,6 +64,19 @@ export function analyzeSchema(tables: TableData[]): AnalyzedTableData[] {
   tables.forEach(table => {
     const sourceName = table.name;
     table.foreignKeys.forEach(fk => {
+      // Determine cardinality based on source table constraints
+      let isOneToOne = false;
+      const fkCols = [...fk.columnNames].sort().join(',');
+      const pkCols = [...table.primaryKeys].sort().join(',');
+      
+      if (fkCols === pkCols && fkCols.length > 0) {
+        isOneToOne = true;
+      } else if (table.uniqueKeys.some(uk => [...uk].sort().join(',') === fkCols)) {
+        isOneToOne = true;
+      }
+      
+      fk.relationType = isOneToOne ? '1:1' : '1:n';
+
       const targetName = fk.targetTable;
       if (tableMap.has(targetName)) { // Ensure target exists
         // sourceName depends on targetName
