@@ -1,8 +1,6 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
-import ReactFlow, { Background, Controls, MarkerType, type Node, type Edge, type NodeChange, applyNodeChanges, useNodesState, useEdgesState } from 'reactflow'
+import { useState, useMemo, useRef, useEffect } from 'react'
+import ReactFlow, { Background, Controls } from 'reactflow'
 import 'reactflow/dist/style.css'
-import { processSchema } from './parser/sql'
-import { analyzeSchema, type AnalyzedTableData } from './utils/graphAnalytics'
 import { getLayoutedElements } from './utils/layout'
 
 // Modular Components
@@ -12,444 +10,60 @@ import { DetailsPanelShell } from './components/panel/DetailsPanelShell'
 import { SearchPanelShell } from './components/panel/SearchPanelShell'
 import { PathfinderModal } from './components/ui/PathfinderModal'
 import { PathfinderSQLPanel } from './components/panel/PathfinderSQLPanel'
-import { findShortestJoinPath, type PathResult } from './utils/pathfinder'
-import { calculateRowSize } from './utils/tableWeight'
-import type { QueryBuilderState } from './utils/queryBuilder'
-import { QueryBuilderPanel } from './components/panel/QueryBuilderPanel';
-import { CanvasLegend } from './components/canvas/CanvasLegend';
-import { useIsMobile } from './hooks/useIsMobile';
+import { QueryBuilderPanel } from './components/panel/QueryBuilderPanel'
+import { CanvasLegend } from './components/canvas/CanvasLegend'
+import { AppHeader } from './components/layout/AppHeader'
+import { findShortestJoinPath } from './utils/pathfinder'
+import { useIsMobile } from './hooks/useIsMobile'
 import type { ActiveTab } from './types/ui'
+
+// Custom Hooks
+import { useSchemaState } from './hooks/useSchemaState'
+import { useQueryBuilderMode } from './hooks/useQueryBuilderMode'
+import { useCanvasLayout } from './hooks/useCanvasLayout'
+import { useCanvasStyling } from './hooks/useCanvasStyling'
+
 function App() {
   const isMobile = useIsMobile();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      processFile(file);
-    }
-  };
-  const [tables, setTables] = useState<AnalyzedTableData[]>(() => {
-    try {
-      const saved = sessionStorage.getItem('erd-tables');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return parsed.map((t: any) => ({
-          ...t,
-          estimatedRowBytes: t.estimatedRowBytes ?? calculateRowSize(t.columns)
-        }));
-      }
-      return [];
-    } catch { return []; }
-  })
-
-  const [nodes, setNodes] = useNodesState<Node>([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
-
-  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
-  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null)
-
-  const [selectedTable, setSelectedTable] = useState<AnalyzedTableData | null>(null)
-  const [activeTab, setActiveTab] = useState<ActiveTab>('overview')
-  const [isIsolatedMode, setIsIsolatedMode] = useState(false)
-
-  const [error, setError] = useState<string | null>(null)
+  
   const [rfInstance, setRfInstance] = useState<any>(null);
-  const [isParsing, setIsParsing] = useState(false)
-
-  const [isPathfinderModalOpen, setIsPathfinderModalOpen] = useState(false)
-  const [pathResult, setPathResult] = useState<PathResult | null>(null)
-
-  // Query Builder State
-  const [isQueryBuilderMode, setIsQueryBuilderMode] = useState(false)
-  const [queryBuilderState, setQueryBuilderState] = useState<QueryBuilderState>({
-    tables: [],
-    columns: [],
-    filters: [],
-    sorts: [],
-    manualJoins: []
-  })
-
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+  const [isIsolatedMode, setIsIsolatedMode] = useState(false);
+  const [isPathfinderModalOpen, setIsPathfinderModalOpen] = useState(false);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(window.innerWidth >= 768);
 
-  const handleToggleColumn = useCallback((tableId: string, columnName: string) => {
-    setQueryBuilderState(prev => {
-      const isSelected = prev.columns.some(c => c.tableId === tableId && c.columnName === columnName)
-      let newColumns = prev.columns
-      if (isSelected) {
-        newColumns = prev.columns.filter(c => !(c.tableId === tableId && c.columnName === columnName))
-      } else {
-        newColumns = [...prev.columns, { tableId, columnName }]
-      }
+  const {
+    tables, setTables,
+    error, setError,
+    isParsing, processFile,
+    pathResult, setPathResult,
+    selectedTable, setSelectedTable
+  } = useSchemaState();
 
-      let newTables = prev.tables;
-      if (newColumns.length > prev.columns.length) {
-         if (!newTables.some(t => t.id === tableId)) {
-            newTables = [...newTables, { id: tableId, name: tableId }];
-         }
-      } else {
-         const hasColumns = newColumns.some(c => c.tableId === tableId);
-         const hasFilters = prev.filters.some(f => f.tableId === tableId);
-         const hasSorts = prev.sorts.some(s => s.tableId === tableId);
-         if (!hasColumns && !hasFilters && !hasSorts) {
-            const table = newTables.find(t => t.id === tableId);
-            // Only automatically remove base tables when fully unselected. Aliases must be explicitly removed.
-            if (table && table.id === table.name) {
-               newTables = newTables.filter(t => t.id !== tableId);
-            }
-         }
-      }
+  const {
+    isQueryBuilderMode, setIsQueryBuilderMode,
+    queryBuilderState, setQueryBuilderState,
+    handleToggleColumn, handleToggleTable
+  } = useQueryBuilderMode(tables);
 
-      return {
-        ...prev,
-        columns: newColumns,
-        tables: newTables
-      }
-    })
-  }, [])
+  const {
+    nodes, setNodes,
+    edges, setEdges,
+    onEdgesChange, handleNodesChange
+  } = useCanvasLayout(tables, setQueryBuilderState);
 
-  const handleToggleTable = useCallback((tableId: string, baseTableName: string) => {
-    setQueryBuilderState(prev => {
-      const isSelected = prev.tables.some(t => t.id === tableId)
-      let newTables = prev.tables
-      let newColumns = prev.columns
-
-      if (isSelected) {
-        // Remove table and all its columns
-        newTables = prev.tables.filter(t => t.id !== tableId)
-        newColumns = prev.columns.filter(c => c.tableId !== tableId)
-      } else {
-        // Add table and all its columns
-        newTables = [...prev.tables, { id: tableId, name: baseTableName }]
-        const tableData = tables.find(t => t.name === baseTableName);
-        if (tableData) {
-          const existingCols = new Set(newColumns.filter(c => c.tableId === tableId).map(c => c.columnName));
-          const colsToAdd = tableData.columns
-            .filter(c => !existingCols.has(c.name))
-            .map(c => ({ tableId, columnName: c.name }));
-          newColumns = [...prev.columns, ...colsToAdd];
-        }
-      }
-
-      return {
-        ...prev,
-        tables: newTables,
-        columns: newColumns
-      }
-    })
-  }, [tables])
+  const { visibleNodes, visibleEdges } = useCanvasStyling({
+    nodes, edges,
+    isQueryBuilderMode, queryBuilderState,
+    hoveredNodeId, hoveredEdgeId,
+    selectedTable, isIsolatedMode, pathResult,
+    handleToggleColumn, handleToggleTable, isMobile
+  });
 
   const nodeTypes = useMemo(() => ({ table: TableNode }), []);
-
-  // Save tables and nodes to sessionStorage
-  useEffect(() => {
-    if (tables.length > 0) {
-      sessionStorage.setItem('erd-tables', JSON.stringify(tables));
-    } else {
-      sessionStorage.removeItem('erd-tables');
-      sessionStorage.removeItem('erd-positions');
-    }
-  }, [tables]);
-
-  useEffect(() => {
-    if (nodes.length > 0) {
-      const positions: Record<string, { x: number, y: number }> = {};
-      nodes.forEach(n => { positions[n.id] = n.position; });
-      sessionStorage.setItem('erd-positions', JSON.stringify(positions));
-    }
-  }, [nodes]);
-
-  useEffect(() => {
-    if (tables.length === 0) {
-      setNodes([]);
-      setEdges([]);
-      return;
-    }
-
-    const savedPositionsStr = sessionStorage.getItem('erd-positions');
-    let savedPositions: Record<string, { x: number, y: number }> | null = null;
-    try {
-      if (savedPositionsStr) savedPositions = JSON.parse(savedPositionsStr);
-    } catch { }
-
-    const newNodes: Node[] = tables.map((table, i) => ({
-      id: table.name,
-      type: 'table',
-      position: savedPositions?.[table.name] || { x: (i % 5) * 400, y: Math.floor(i / 5) * 550 },
-      data: { table }
-    }));
-
-    const newEdges: Edge[] = [];
-    tables.forEach(table => {
-      table.foreignKeys.forEach((fk, fkIdx) => {
-        newEdges.push({
-          id: `${table.name}-${fk.targetTable}-${fkIdx}`,
-          source: table.name,
-          target: fk.targetTable,
-          label: `${fk.columnNames.join(', ')} → ${fk.targetColumnNames.join(', ')}`,
-          labelBgStyle: { fill: '#1e293b', stroke: '#334155', strokeWidth: 1, rx: 4, ry: 4 },
-          labelStyle: { fill: '#cbd5e1', fontSize: 10, fontWeight: 500, fontFamily: 'monospace' },
-          data: { isImplicit: fk.isImplicit },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: '#94a3b8' // Bolder, whiter slate-400
-          },
-          style: {
-            stroke: '#94a3b8',
-            strokeWidth: 3
-          },
-          animated: false,
-        });
-      })
-    })
-
-    if (!savedPositions || Object.keys(savedPositions).length === 0) {
-      // First time layout
-      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(newNodes, newEdges, 'LR');
-      setNodes(layoutedNodes);
-      setEdges(layoutedEdges);
-    } else {
-      // Use saved positions
-      setNodes(newNodes);
-      setEdges(newEdges);
-    }
-  }, [tables, setNodes, setEdges]);
-
-  const processFile = async (file: File) => {
-    setError(null)
-    setIsParsing(true)
-
-    try {
-      const text = await file.text()
-      const parsedTables = await processSchema(text)
-      const analyzedTables = analyzeSchema(parsedTables)
-      // Clear positions for new file
-      sessionStorage.removeItem('erd-positions');
-      sessionStorage.removeItem('erd-tables');
-      setTables(analyzedTables)
-      setSelectedTable(null)
-      setPathResult(null)
-    } catch (err: any) {
-      console.error(err)
-      setError(err.message || "An error occurred while parsing the schema.")
-    } finally {
-      setIsParsing(false)
-    }
-  }
-
-  const onNodeMouseEnter = (_: React.MouseEvent, node: Node) => {
-    setHoveredNodeId(node.id);
-  }
-
-  const onNodeMouseLeave = () => {
-    setHoveredNodeId(null);
-  }
-
-  const onEdgeMouseEnter = (_: React.MouseEvent, edge: Edge) => {
-    setHoveredEdgeId(edge.id);
-  }
-
-  const onEdgeMouseLeave = () => {
-    setHoveredEdgeId(null);
-  }
-
-  const onNodeClick = (_: React.MouseEvent, node: Node) => {
-    setSelectedTable(node.data.table);
-    setActiveTab('overview');
-    setIsIsolatedMode(false);
-    setPathResult(null);
-  }
-
-  const qbNodes = useMemo(() => {
-    if (!isQueryBuilderMode) return nodes;
-
-    const aliasNodes: Node[] = [];
-    queryBuilderState.tables.forEach((t, i) => {
-       if (t.id !== t.name) {
-          const baseNode = nodes.find(n => n.id === t.name);
-          if (baseNode) {
-            aliasNodes.push({
-               ...baseNode,
-               id: t.id,
-               position: t.position || { x: baseNode.position.x + 80, y: baseNode.position.y + 80 }, 
-               data: { ...baseNode.data }
-            });
-          }
-       }
-    });
-    return [...nodes, ...aliasNodes];
-  }, [nodes, isQueryBuilderMode, queryBuilderState.tables]);
-
-  const qbEdges = useMemo(() => {
-    if (!isQueryBuilderMode) return edges;
-
-    const aliasEdges: Edge[] = [];
-    queryBuilderState.tables.forEach(t => {
-       if (t.id !== t.name) {
-          edges.forEach(e => {
-             if (e.source === t.name) aliasEdges.push({ ...e, id: `${e.id}-src-${t.id}`, source: t.id });
-             if (e.target === t.name) aliasEdges.push({ ...e, id: `${e.id}-tgt-${t.id}`, target: t.id });
-          });
-       }
-    });
-    return [...edges, ...aliasEdges];
-  }, [edges, isQueryBuilderMode, queryBuilderState.tables]);
-
-  const styledNodes = useMemo(() => {
-    const activeNodeId = hoveredNodeId || selectedTable?.name || null;
-
-    const injectQbProps = (n: Node) => ({
-      ...n.data,
-      tableId: n.id,
-      isQueryBuilderMode,
-      selectedColumns: queryBuilderState.columns.filter(c => c.tableId === n.id).map(c => c.columnName),
-      isTableSelected: queryBuilderState.tables.some(t => t.id === n.id),
-      onToggleColumn: handleToggleColumn,
-      onToggleTable: handleToggleTable,
-      isMobile,
-      isIsolatedMode
-    });
-
-    if (!activeNodeId && !hoveredEdgeId) return qbNodes.map(n => ({ ...n, data: { ...injectQbProps(n), isFaded: false, isHovered: false, isConnected: false } }));
-
-    const activeEdge = qbEdges.find(e => e.id === hoveredEdgeId);
-
-    return qbNodes.map(n => {
-      let isHovered = false;
-      let isConnected = false;
-      let isFaded = true;
-
-      if (activeNodeId) {
-        isHovered = n.id === activeNodeId;
-        isConnected = qbEdges.some(e => (e.source === activeNodeId && e.target === n.id) || (e.target === activeNodeId && e.source === n.id));
-        isFaded = !isHovered && !isConnected;
-      } else if (activeEdge) {
-        isConnected = n.id === activeEdge.source || n.id === activeEdge.target;
-        isFaded = !isConnected;
-      }
-
-      return {
-        ...n,
-        data: {
-          ...injectQbProps(n),
-          isHovered: n.id === hoveredNodeId || n.id === selectedTable?.name,
-          isConnected,
-          isFaded
-        }
-      }
-    });
-  }, [qbNodes, qbEdges, hoveredNodeId, hoveredEdgeId, selectedTable, isQueryBuilderMode, queryBuilderState.columns, queryBuilderState.tables, handleToggleColumn, handleToggleTable]);
-
-  const styledEdges = useMemo(() => {
-    const activeNodeId = hoveredNodeId || selectedTable?.name || null;
-    if (!activeNodeId && !hoveredEdgeId) return qbEdges.map(e => ({
-      ...e,
-      style: { ...e.style, opacity: 1, stroke: '#94a3b8', strokeWidth: 3, zIndex: 0 },
-      labelStyle: { ...(e.labelStyle as React.CSSProperties), opacity: 1 },
-      labelBgStyle: { ...(e.labelBgStyle as React.CSSProperties), opacity: 1 },
-      animated: false,
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' }
-    }));
-
-    return qbEdges.map(e => {
-      let isConnected = false;
-
-      if (activeNodeId) {
-        isConnected = e.source === activeNodeId || e.target === activeNodeId;
-      } else if (hoveredEdgeId) {
-        isConnected = e.id === hoveredEdgeId;
-      }
-
-      const opacity = isConnected ? 1 : 0.3;
-      return {
-        ...e,
-        style: {
-          ...e.style,
-          stroke: isConnected ? '#38bdf8' : '#475569',
-          strokeWidth: isConnected ? 4 : 3,
-          opacity: opacity,
-          zIndex: isConnected ? 10 : 0,
-          transition: 'stroke 0.3s ease, stroke-width 0.3s ease, opacity 0.3s ease'
-        },
-        labelStyle: { ...(e.labelStyle as React.CSSProperties), opacity: opacity, transition: 'opacity 0.3s ease' },
-        labelBgStyle: { ...(e.labelBgStyle as React.CSSProperties), opacity: opacity, transition: 'opacity 0.3s ease' },
-        animated: isConnected,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: isConnected ? '#38bdf8' : '#475569'
-        }
-      };
-    });
-  }, [edges, hoveredNodeId, hoveredEdgeId, selectedTable]);
-
-  const { visibleNodes, visibleEdges } = useMemo(() => {
-    if (pathResult && pathResult.found) {
-      const pathSet = new Set(pathResult.tables);
-
-      const isolatedNodes = styledNodes.filter(n => pathSet.has(n.id)).map(n => ({
-        ...n,
-        data: { ...n.data, isHovered: true, isConnected: true, isFaded: false }
-      }));
-
-      // Only include edges that are explicitly part of the path
-      const isolatedEdges = styledEdges.filter(e => {
-        return pathResult.edges.some(pe =>
-          (pe.fromTable === e.source && pe.toTable === e.target) ||
-          (pe.fromTable === e.target && pe.toTable === e.source)
-        );
-      }).map(e => ({
-        ...e,
-        style: { ...e.style, stroke: '#0ea5e9', strokeWidth: 4, opacity: 1, zIndex: 10 },
-        animated: true,
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#0ea5e9' }
-      }));
-
-      try {
-        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(isolatedNodes, isolatedEdges, 'LR');
-        return { visibleNodes: layoutedNodes, visibleEdges: layoutedEdges };
-      } catch (err) {
-        console.error("Layout failed for pathfinder:", err);
-        return { visibleNodes: isolatedNodes, visibleEdges: isolatedEdges };
-      }
-    }
-
-    if (isQueryBuilderMode) {
-      if (isIsolatedMode && queryBuilderState.tables.length > 0) {
-        const selectedTableIds = new Set(queryBuilderState.tables.map(t => t.id));
-        const baseNodeIds = new Set(queryBuilderState.tables.map(t => t.name));
-        
-        const isolatedNodes = styledNodes.filter(n => selectedTableIds.has(n.id) || baseNodeIds.has(n.id));
-        const isolatedEdges = styledEdges.filter(e => 
-          (selectedTableIds.has(e.source) || baseNodeIds.has(e.source)) && 
-          (selectedTableIds.has(e.target) || baseNodeIds.has(e.target))
-        );
-        return { visibleNodes: isolatedNodes, visibleEdges: isolatedEdges };
-      }
-      return { visibleNodes: styledNodes, visibleEdges: styledEdges };
-    }
-
-    if (!isIsolatedMode || !selectedTable) {
-      return {
-        visibleNodes: styledNodes,
-        visibleEdges: styledEdges
-      };
-    }
-
-    const anchorNodeId = selectedTable.name;
-    const connectedNodeIds = new Set<string>([anchorNodeId]);
-
-    edges.forEach(e => {
-      if (e.source === anchorNodeId) connectedNodeIds.add(e.target);
-      if (e.target === anchorNodeId) connectedNodeIds.add(e.source);
-    });
-
-    const isolatedNodes = styledNodes.filter(n => connectedNodeIds.has(n.id));
-    const isolatedEdges = styledEdges.filter(e => connectedNodeIds.has(e.source) && connectedNodeIds.has(e.target));
-
-    // Auto-layout just these nodes
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(isolatedNodes, isolatedEdges, 'LR');
-
-    return { visibleNodes: layoutedNodes, visibleEdges: layoutedEdges };
-  }, [styledNodes, styledEdges, isIsolatedMode, selectedTable, edges, pathResult]);
 
   useEffect(() => {
     if (rfInstance) {
@@ -457,284 +71,42 @@ function App() {
         rfInstance.fitView({ padding: 0.2, duration: 800 });
       }, 50);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isIsolatedMode, pathResult, rfInstance]);
 
-  const handleNodesChange = useCallback((changes: NodeChange[]) => {
-    // Intercept position changes for alias nodes (clones)
-    const positionChanges = changes.filter(c => c.type === 'position' && ((c as any).position || (c as any).positionAbsolute)) as any[];
-    if (positionChanges.length > 0) {
-      setQueryBuilderState(prev => {
-        let updated = false;
-        const newTables = prev.tables.map(t => {
-          if (t.id !== t.name) {
-            const change = positionChanges.find(c => c.id === t.id);
-            const newPos = change?.positionAbsolute || change?.position;
-            if (change && newPos) {
-              updated = true;
-              return { ...t, position: newPos };
-            }
-          }
-          return t;
-        });
-        return updated ? { ...prev, tables: newTables } : prev;
-      });
-    }
-
-    setNodes((currentNodes) => {
-      let nextNodes = applyNodeChanges(changes, currentNodes);
-
-      const positionChanges = changes.filter((c: any) => c.type === 'position' && c.dragging);
-
-      if (positionChanges.length > 0) {
-        positionChanges.forEach((change: any) => {
-          const a = nextNodes.find(n => n.id === change.id);
-          if (!a) return;
-
-          const wA = a.width ?? 320;
-          const hA = a.height ?? 300;
-          const cxA = a.position.x + wA / 2;
-          const cyA = a.position.y + hA / 2;
-
-          nextNodes = nextNodes.map(b => {
-            if (a.id === b.id) return b;
-
-            const wB = b.width ?? 320;
-            const hB = b.height ?? 300;
-
-            const isColliding = (
-              a.position.x < b.position.x + wB &&
-              a.position.x + wA > b.position.x &&
-              a.position.y < b.position.y + hB &&
-              a.position.y + hA > b.position.y
-            );
-
-            if (isColliding) {
-              const cxB = b.position.x + wB / 2;
-              const cyB = b.position.y + hB / 2;
-
-              let dx = cxB - cxA;
-              let dy = cyB - cyA;
-
-              if (dx === 0 && dy === 0) {
-                dx = Math.random() * 10 - 5;
-                dy = Math.random() * 10 - 5;
-              }
-
-              // Apply heavily damped elastic push
-              return {
-                ...b,
-                position: {
-                  x: b.position.x + dx * 0.15,
-                  y: b.position.y + dy * 0.15,
-                }
-              };
-            }
-            return b;
-          });
-        });
-      }
-
-      return nextNodes;
-    });
-  }, [setNodes]);
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) processFile(file);
+  };
 
   if (tables.length > 0) {
-    const isQb = isQueryBuilderMode;
     return (
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: isQb ? '#000000' : '#0f172a' }}>
-        <div style={{
-          padding: '0.5rem 2rem', // Reduced padding
-          backgroundColor: isQb ? 'rgba(0, 0, 0, 0.95)' : 'rgba(30, 41, 59, 0.95)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: isQb ? '1px solid #222' : '1px solid #1e293b',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 50,
-          transition: 'background-color 0.3s ease, border-color 0.3s ease'
-        }}>
-          <h2
-            onClick={() => { setTables([]); setPathResult(null); }}
-            style={{
-              margin: 0,
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              color: isQb ? '#ffffff' : '#f8fafc',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              cursor: 'pointer',
-              transition: 'opacity 0.2s ease',
-            }}
-            onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
-            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
-          >
-            {isQb ? (
-              <><span style={{ color: '#10b981' }}>Query</span> <span style={{ color: '#3b82f6' }}>Builder</span></>
-            ) : (
-              <><span style={{ color: '#38bdf8' }}>ERDiagram</span> Canvas</>
-            )}
-          </h2>
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: isQueryBuilderMode ? '#000000' : '#0f172a' }}>
+        <AppHeader
+          isQueryBuilderMode={isQueryBuilderMode}
+          tables={tables}
+          isMobile={isMobile}
+          isParsing={isParsing}
+          fileInputRef={fileInputRef}
+          handleFileChange={handleFileChange}
+          setTables={setTables}
+          setPathResult={setPathResult}
+          setIsPathfinderModalOpen={setIsPathfinderModalOpen}
+          toggleQueryBuilder={() => {
+            setIsQueryBuilderMode(prev => !prev);
+            if (isQueryBuilderMode) {
+              setQueryBuilderState({ tables: [], columns: [], filters: [], sorts: [], manualJoins: [] });
+            } else {
+              setActiveTab('overview');
+              setSelectedTable(null);
+            }
+          }}
+          autoLayout={() => {
+            const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, 'LR');
+            setNodes(layoutedNodes);
+            setEdges(layoutedEdges);
+          }}
+        />
 
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            {tables.length > 0 && !isQueryBuilderMode && (
-              <button
-                onClick={() => setIsPathfinderModalOpen(true)}
-                style={{
-                  padding: '0.4rem 1rem',
-                  cursor: 'pointer',
-                  backgroundColor: '#0369a1',
-                  border: '1px solid #0284c7',
-                  color: '#fff',
-                  borderRadius: '6px',
-                  transition: 'all 0.2s ease',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  fontSize: '0.9rem'
-                }}
-                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0284c7'}
-                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#0369a1'}
-              >
-                {!isMobile && "Extract Data (Pathfinder)"}
-              </button>
-            )}
-
-            {tables.length > 0 && (
-              <button
-                onClick={() => {
-                  setIsQueryBuilderMode(prev => !prev);
-                  if (isQueryBuilderMode) {
-                    // Exiting mode, clear state
-                    setQueryBuilderState({ tables: [], columns: [], filters: [], sorts: [], manualJoins: [] });
-                  } else {
-                    // Entering mode
-                    setActiveTab('overview'); // reset tab
-                    setSelectedTable(null);
-                  }
-                }}
-                style={{
-                  padding: '0.4rem 1rem',
-                  cursor: 'pointer',
-                  backgroundColor: isQueryBuilderMode ? '#0ea5e9' : 'transparent',
-                  border: '1px solid #0ea5e9',
-                  color: isQueryBuilderMode ? '#fff' : '#0ea5e9',
-                  borderRadius: '6px',
-                  transition: 'all 0.2s ease',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  fontSize: '0.9rem'
-                }}
-                onMouseOver={(e) => {
-                  if (!isQueryBuilderMode) {
-                    e.currentTarget.style.backgroundColor = 'rgba(14, 165, 233, 0.1)';
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (!isQueryBuilderMode) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }
-                }}
-              >
-                {!isMobile && (isQueryBuilderMode ? 'Exit Query Builder' : 'Query Builder')}
-              </button>
-            )}
-            {tables.length > 0 && (
-              <button
-                onClick={() => {
-                  const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, 'LR');
-                  setNodes(layoutedNodes);
-                  setEdges(layoutedEdges);
-                }}
-                style={{
-                  padding: '0.5rem 1rem',
-                  cursor: 'pointer',
-                  backgroundColor: 'transparent',
-                  border: '1px solid #334155',
-                  color: '#cbd5e1',
-                  borderRadius: '6px',
-                  transition: 'all 0.2s ease',
-                  fontWeight: 500
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = '#1e293b';
-                  e.currentTarget.style.borderColor = '#475569';
-                  e.currentTarget.style.color = '#f8fafc';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.borderColor = '#334155';
-                  e.currentTarget.style.color = '#cbd5e1';
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
-                {!isMobile && "Auto Layout"}
-              </button>
-            )}
-            {isParsing && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#38bdf8', fontSize: '0.9rem' }}>
-                <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="2" x2="12" y2="6"></line>
-                  <line x1="12" y1="18" x2="12" y2="22"></line>
-                  <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-                  <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-                  <line x1="2" y1="12" x2="6" y2="12"></line>
-                  <line x1="18" y1="12" x2="22" y2="12"></line>
-                  <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
-                  <line x1="16.24" y1="4.93" x2="19.07" y2="7.76"></line>
-                </svg>
-                <span>Parsing...</span>
-              </div>
-            )}
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept=".sql"
-              style={{ display: 'none' }}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isParsing}
-              style={{
-                padding: '0.5rem 1rem',
-                cursor: isParsing ? 'not-allowed' : 'pointer',
-                backgroundColor: 'transparent',
-                border: '1px solid #334155',
-                color: '#cbd5e1',
-                borderRadius: '6px',
-                transition: 'all 0.2s ease',
-                fontWeight: 500,
-                opacity: isParsing ? 0.5 : 1
-              }}
-              onMouseOver={(e) => {
-                if (isParsing) return;
-                e.currentTarget.style.backgroundColor = '#1e293b';
-                e.currentTarget.style.borderColor = '#475569';
-                e.currentTarget.style.color = '#f8fafc';
-              }}
-              onMouseOut={(e) => {
-                if (isParsing) return;
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.borderColor = '#334155';
-                e.currentTarget.style.color = '#cbd5e1';
-              }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              {!isMobile && "Upload New File"}
-            </button>
-          </div>
-        </div>
-
-        {/* Error banner if upload failed from canvas */}
         {error && (
           <div style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-50%)', zIndex: 60, color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '0.75rem 1.5rem', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
             <strong>Error:</strong> {error}
@@ -744,18 +116,23 @@ function App() {
           </div>
         )}
 
-        <div style={{ flex: 1, backgroundColor: isQb ? '#000000' : '#0f172a', position: 'relative', transition: 'background-color 0.3s ease' }}>
+        <div style={{ flex: 1, backgroundColor: isQueryBuilderMode ? '#000000' : '#0f172a', position: 'relative', transition: 'background-color 0.3s ease' }}>
           <ReactFlow
             nodes={visibleNodes}
             edges={visibleEdges}
             onNodesChange={handleNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
-            onNodeMouseEnter={onNodeMouseEnter}
-            onNodeMouseLeave={onNodeMouseLeave}
-            onEdgeMouseEnter={onEdgeMouseEnter}
-            onEdgeMouseLeave={onEdgeMouseLeave}
-            onNodeClick={onNodeClick}
+            onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
+            onNodeMouseLeave={() => setHoveredNodeId(null)}
+            onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
+            onEdgeMouseLeave={() => setHoveredEdgeId(null)}
+            onNodeClick={(_, node) => {
+              setSelectedTable(node.data.table);
+              setActiveTab('overview');
+              setIsIsolatedMode(false);
+              setPathResult(null);
+            }}
             onPaneClick={() => {
               setSelectedTable(null);
               setIsIsolatedMode(false);
@@ -766,8 +143,8 @@ function App() {
             minZoom={0.1}
             nodesConnectable={false}
           >
-            <Background color={isQb ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.2)'} gap={24} size={2} />
-            <Controls style={{ backgroundColor: isQb ? '#000000' : '#0f172a', border: isQb ? '1px solid #333' : '1px solid #1e293b', fill: isQb ? '#10b981' : '#94a3b8' }} />
+            <Background color={isQueryBuilderMode ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.2)'} gap={24} size={2} />
+            <Controls style={{ backgroundColor: isQueryBuilderMode ? '#000000' : '#0f172a', border: isQueryBuilderMode ? '1px solid #333' : '1px solid #1e293b', fill: isQueryBuilderMode ? '#10b981' : '#94a3b8' }} />
           </ReactFlow>
 
           {!isQueryBuilderMode && selectedTable && (
