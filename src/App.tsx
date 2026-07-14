@@ -91,7 +91,11 @@ function App() {
          const hasFilters = prev.filters.some(f => f.tableId === tableId);
          const hasSorts = prev.sorts.some(s => s.tableId === tableId);
          if (!hasColumns && !hasFilters && !hasSorts) {
-            newTables = newTables.filter(t => t.id !== tableId);
+            const table = newTables.find(t => t.id === tableId);
+            // Only automatically remove base tables when fully unselected. Aliases must be explicitly removed.
+            if (table && table.id === table.name) {
+               newTables = newTables.filter(t => t.id !== tableId);
+            }
          }
       }
 
@@ -266,7 +270,7 @@ function App() {
             aliasNodes.push({
                ...baseNode,
                id: t.id,
-               position: { x: baseNode.position.x + 80, y: baseNode.position.y + 80 }, 
+               position: t.position || { x: baseNode.position.x + 80, y: baseNode.position.y + 80 }, 
                data: { ...baseNode.data }
             });
           }
@@ -442,6 +446,26 @@ function App() {
   }, [isIsolatedMode, pathResult, rfInstance]);
 
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    // Intercept position changes for alias nodes (clones)
+    const positionChanges = changes.filter(c => c.type === 'position' && ((c as any).position || (c as any).positionAbsolute)) as any[];
+    if (positionChanges.length > 0) {
+      setQueryBuilderState(prev => {
+        let updated = false;
+        const newTables = prev.tables.map(t => {
+          if (t.id !== t.name) {
+            const change = positionChanges.find(c => c.id === t.id);
+            const newPos = change?.positionAbsolute || change?.position;
+            if (change && newPos) {
+              updated = true;
+              return { ...t, position: newPos };
+            }
+          }
+          return t;
+        });
+        return updated ? { ...prev, tables: newTables } : prev;
+      });
+    }
+
     setNodes((currentNodes) => {
       let nextNodes = applyNodeChanges(changes, currentNodes);
 

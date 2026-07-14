@@ -46,7 +46,9 @@ export function TableNode({ data }: { data: { table: TableData, tableId?: string
             style={{ marginRight: '1rem', transform: 'scale(1.8)', cursor: 'pointer', accentColor: '#38bdf8' }}
           />
         )}
-        <h3 style={{ margin: 0, color: '#f1f5f9', fontSize: '1.4rem', letterSpacing: '0.025em', textAlign: 'center' }}>{table.name}</h3>
+        <h3 style={{ margin: 0, color: '#f1f5f9', fontSize: '1.4rem', letterSpacing: '0.025em', textAlign: 'center' }}>
+          {tableId !== table.name ? tableId : table.name}
+        </h3>
       </div>
       
       {!isCollapsed && (

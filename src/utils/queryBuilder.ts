@@ -4,6 +4,7 @@ import type { AnalyzedTableData } from './graphAnalytics';
 export interface QueryTable {
   id: string; // The alias/unique ID for this instance (e.g. "users_1")
   name: string; // The base table name (e.g. "users")
+  position?: { x: number, y: number }; // Used for preserving canvas position of clones
 }
 
 export interface QueryColumn {
