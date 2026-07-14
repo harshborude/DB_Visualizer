@@ -7,9 +7,11 @@ interface QueryBuilderPanelProps {
   state: QueryBuilderState;
   setState: React.Dispatch<React.SetStateAction<QueryBuilderState>>;
   onClose: () => void;
+  isIsolatedMode: boolean;
+  onToggleIsolation: () => void;
 }
 
-export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBuilderPanelProps) {
+export function QueryBuilderPanel({ schema, state, setState, onClose, isIsolatedMode, onToggleIsolation }: QueryBuilderPanelProps) {
   const [activeTab, setActiveTab] = useState<'tables' | 'columns' | 'filters' | 'sorts'>('tables');
   const [sqlPreview, setSqlPreview] = useState<string>('');
   const [queryError, setQueryError] = useState<string | null>(null);
@@ -125,6 +127,14 @@ export function QueryBuilderPanel({ schema, state, setState, onClose }: QueryBui
           <span style={{ color: '#ffffff' }}>Query Builder</span>
         </h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button 
+            onClick={onToggleIsolation}
+            style={{ background: isIsolatedMode ? 'rgba(16, 185, 129, 0.1)' : 'transparent', color: isIsolatedMode ? '#10b981' : '#6b7280', border: isIsolatedMode ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #333', padding: '0.25rem 0.75rem', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+            title="Isolate Selected Tables on Canvas"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            Isolate
+          </button>
           {state.tables.length > 0 && (
             <button 
               onClick={() => setState({ tables: [], columns: [], filters: [], sorts: [], manualJoins: [] })}

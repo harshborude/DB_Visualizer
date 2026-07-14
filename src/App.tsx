@@ -412,6 +412,21 @@ function App() {
       }
     }
 
+    if (isQueryBuilderMode) {
+      if (isIsolatedMode && queryBuilderState.tables.length > 0) {
+        const selectedTableIds = new Set(queryBuilderState.tables.map(t => t.id));
+        const baseNodeIds = new Set(queryBuilderState.tables.map(t => t.name));
+        
+        const isolatedNodes = styledNodes.filter(n => selectedTableIds.has(n.id) || baseNodeIds.has(n.id));
+        const isolatedEdges = styledEdges.filter(e => 
+          (selectedTableIds.has(e.source) || baseNodeIds.has(e.source)) && 
+          (selectedTableIds.has(e.target) || baseNodeIds.has(e.target))
+        );
+        return { visibleNodes: isolatedNodes, visibleEdges: isolatedEdges };
+      }
+      return { visibleNodes: styledNodes, visibleEdges: styledEdges };
+    }
+
     if (!isIsolatedMode || !selectedTable) {
       return {
         visibleNodes: styledNodes,
@@ -587,7 +602,6 @@ function App() {
                 onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0284c7'}
                 onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#0369a1'}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                 {!isMobile && "Extract Data (Pathfinder)"}
               </button>
             )}
@@ -630,7 +644,6 @@ function App() {
                   }
                 }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
                 {!isMobile && (isQueryBuilderMode ? 'Exit Query Builder' : 'Query Builder')}
               </button>
             )}
@@ -779,6 +792,8 @@ function App() {
               state={queryBuilderState}
               setState={setQueryBuilderState}
               onClose={() => setIsQueryBuilderMode(false)}
+              isIsolatedMode={isIsolatedMode}
+              onToggleIsolation={() => setIsIsolatedMode(prev => !prev)}
             />
           )}
 
