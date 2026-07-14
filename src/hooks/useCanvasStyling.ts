@@ -3,6 +3,7 @@ import { type Node, type Edge, MarkerType } from 'reactflow';
 import { getLayoutedElements } from '../utils/layout';
 import type { AnalyzedTableData } from '../utils/graphAnalytics';
 import type { QueryBuilderState } from '../utils/queryBuilder';
+import { buildQuerySpanningTree } from '../utils/queryBuilder';
 import type { PathResult } from '../utils/pathfinder';
 
 interface UseCanvasStylingProps {
@@ -117,7 +118,19 @@ export function useCanvasStyling({
 
   const styledEdges = useMemo(() => {
     const activeNodeId = hoveredNodeId || selectedTable?.name || null;
-    if (!activeNodeId && !hoveredEdgeId) return qbEdges.map(e => ({
+
+    // Calculate spanning tree to find ALL edges that should be highlighted
+    const schema = nodes.map(n => n.data.table as AnalyzedTableData).filter(Boolean);
+    let spanningEdges: any[] = [];
+    if (isQueryBuilderMode && queryBuilderState.tables.length > 1) {
+      try {
+        spanningEdges = buildQuerySpanningTree(queryBuilderState.tables, schema, queryBuilderState.manualJoins);
+      } catch (e) {
+        console.warn("Could not build query spanning tree for highlighting:", e);
+      }
+    }
+
+    if (!activeNodeId && !hoveredEdgeId && !isQueryBuilderMode) return qbEdges.map(e => ({
       ...e,
       style: { ...e.style, opacity: 1, stroke: '#94a3b8', strokeWidth: 3, zIndex: 0 },
       labelStyle: { ...(e.labelStyle as React.CSSProperties), opacity: 1 },
@@ -128,6 +141,7 @@ export function useCanvasStyling({
 
     return qbEdges.map(e => {
       let isConnected = false;
+      let isQbJoin = false;
 
       if (activeNodeId) {
         isConnected = e.source === activeNodeId || e.target === activeNodeId;
@@ -135,27 +149,57 @@ export function useCanvasStyling({
         isConnected = e.id === hoveredEdgeId;
       }
 
-      const opacity = isConnected ? 1 : 0.3;
+      if (isQueryBuilderMode) {
+        isQbJoin = spanningEdges.some(se => 
+          (se.fromTable === e.source && se.toTable === e.target) ||
+          (se.fromTable === e.target && se.toTable === e.source)
+        );
+      }
+
+      const opacity = (isConnected || isQbJoin || (!activeNodeId && !hoveredEdgeId)) ? 1 : 0.3;
+      
+      let strokeColor = '#94a3b8';
+      let strokeWidth = 3;
+      let zIndex = 0;
+
+      if (isQbJoin) {
+        strokeColor = '#fde047'; // yellow-300
+        strokeWidth = 4;
+        zIndex = 5;
+      }
+
+      if (isConnected) {
+        strokeColor = '#38bdf8'; // sky-400
+        strokeWidth = 4;
+        zIndex = 10;
+      }
+
+      if (!isConnected && !isQbJoin && !activeNodeId && !hoveredEdgeId) {
+        strokeColor = '#94a3b8';
+        strokeWidth = 3;
+        zIndex = 0;
+      }
+
       return {
         ...e,
         style: {
           ...e.style,
-          stroke: isConnected ? '#38bdf8' : '#475569',
-          strokeWidth: isConnected ? 4 : 3,
+          stroke: strokeColor,
+          strokeWidth: strokeWidth,
           opacity: opacity,
-          zIndex: isConnected ? 10 : 0,
+          zIndex: zIndex,
           transition: 'stroke 0.3s ease, stroke-width 0.3s ease, opacity 0.3s ease'
         },
         labelStyle: { ...(e.labelStyle as React.CSSProperties), opacity: opacity, transition: 'opacity 0.3s ease' },
         labelBgStyle: { ...(e.labelBgStyle as React.CSSProperties), opacity: opacity, transition: 'opacity 0.3s ease' },
-        animated: isConnected,
+        animated: isConnected || isQbJoin,
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: isConnected ? '#38bdf8' : '#475569'
+          color: strokeColor
         }
       };
     });
-  }, [qbEdges, hoveredNodeId, hoveredEdgeId, selectedTable]);
+  }, [qbEdges, hoveredNodeId, hoveredEdgeId, selectedTable, isQueryBuilderMode, queryBuilderState.tables]);
 
   const { visibleNodes, visibleEdges } = useMemo(() => {
     if (pathResult && pathResult.found) {
@@ -193,10 +237,22 @@ export function useCanvasStyling({
         const selectedTableIds = new Set(queryBuilderState.tables.map(t => t.id));
         const baseNodeIds = new Set(queryBuilderState.tables.map(t => t.name));
         
-        const isolatedNodes = styledNodes.filter(n => selectedTableIds.has(n.id) || baseNodeIds.has(n.id));
+        const schema = nodes.map(n => n.data.table as AnalyzedTableData).filter(Boolean);
+        let spanningEdges: any[] = [];
+        try {
+          spanningEdges = buildQuerySpanningTree(queryBuilderState.tables, schema, queryBuilderState.manualJoins);
+        } catch (e) {}
+
+        const hopNodeIds = new Set<string>();
+        spanningEdges.forEach(se => {
+          hopNodeIds.add(se.fromTable);
+          hopNodeIds.add(se.toTable);
+        });
+        
+        const isolatedNodes = styledNodes.filter(n => selectedTableIds.has(n.id) || baseNodeIds.has(n.id) || hopNodeIds.has(n.id));
         const isolatedEdges = styledEdges.filter(e => 
-          (selectedTableIds.has(e.source) || baseNodeIds.has(e.source)) && 
-          (selectedTableIds.has(e.target) || baseNodeIds.has(e.target))
+          (selectedTableIds.has(e.source) || baseNodeIds.has(e.source) || hopNodeIds.has(e.source)) && 
+          (selectedTableIds.has(e.target) || baseNodeIds.has(e.target) || hopNodeIds.has(e.target))
         );
         return { visibleNodes: isolatedNodes, visibleEdges: isolatedEdges };
       }
@@ -225,7 +281,7 @@ export function useCanvasStyling({
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(isolatedNodes, isolatedEdges, 'LR');
 
     return { visibleNodes: layoutedNodes, visibleEdges: layoutedEdges };
-  }, [styledNodes, styledEdges, isIsolatedMode, selectedTable, edges, pathResult, isQueryBuilderMode, queryBuilderState.tables]);
+  }, [styledNodes, styledEdges, isIsolatedMode, selectedTable, edges, pathResult, isQueryBuilderMode, queryBuilderState.tables, queryBuilderState.manualJoins, nodes]);
 
   return { visibleNodes, visibleEdges };
 }
