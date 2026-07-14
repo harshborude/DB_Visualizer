@@ -9,7 +9,10 @@ export function TableNode({ data }: { data: { table: TableData, tableId?: string
   let glowStyle = '0 4px 15px rgba(0,0,0,0.5)'; // default dark shadow
   let borderColor = '#475569'; // lighter slate-600 border so it stands out
   
-  if (isImplicitView) {
+  if (isTableSelected) {
+    glowStyle = '0 0 25px rgba(255, 255, 255, 0.6)'; // Permanent white glow
+    borderColor = '#ffffff'; // white border
+  } else if (isImplicitView) {
     glowStyle = '0 0 25px rgba(248, 250, 252, 0.4)'; // White glow
     borderColor = '#f8fafc'; // slate-50
   } else if (isHovered) {

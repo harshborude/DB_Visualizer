@@ -84,10 +84,15 @@ export function buildQuerySpanningTree(
         break;
       }
       
+      let currentTableBaseName = '';
       const currentTableInfo = selectedTables.find(t => t.id === currentTableId);
-      if (!currentTableInfo) continue;
+      if (currentTableInfo) {
+        currentTableBaseName = currentTableInfo.name;
+      } else {
+        currentTableBaseName = currentTableId;
+      }
 
-      const neighbors = graph.get(currentTableInfo.name) || [];
+      const neighbors = graph.get(currentTableBaseName) || [];
       for (const edge of neighbors) {
         // Find all selected instances of the target base table
         const matchingInstances = selectedTables.filter(t => t.name === edge.toTable);
@@ -196,13 +201,49 @@ export function compileQuery(state: QueryBuilderState, schema: AnalyzedTableData
   if (state.columns.length === 0) {
     sql += '  *\n';
   } else {
-    const cols = state.columns.map(c => {
-      let colStr = `${c.tableId}.${c.columnName}`;
-      if (c.func) colStr = `${c.func}(${colStr})`;
-      if (c.alias) colStr += ` AS "${c.alias}"`;
-      return `  ${colStr}`;
-    });
-    sql += cols.join(',\n') + '\n';
+    const selectItems: string[] = [];
+    const columnsByTableId = new Map<string, typeof state.columns>();
+    for (const c of state.columns) {
+      if (!columnsByTableId.has(c.tableId)) columnsByTableId.set(c.tableId, []);
+      columnsByTableId.get(c.tableId)!.push(c);
+    }
+    
+    const collapsedTables = new Set<string>();
+
+    for (const table of state.tables) {
+      const tableData = schema.find(t => t.name === table.name);
+      if (!tableData) continue;
+      
+      const cols = columnsByTableId.get(table.id) || [];
+      const hasFuncOrAlias = cols.some(c => c.func || c.alias);
+      
+      if (!hasFuncOrAlias && cols.length > 0 && cols.length === tableData.columns.length) {
+        const selectedColNames = new Set(cols.map(c => c.columnName));
+        const allPresent = tableData.columns.every(c => selectedColNames.has(c.name));
+        
+        if (allPresent) {
+           collapsedTables.add(table.id);
+        }
+      }
+    }
+    
+    const addedCollapsed = new Set<string>();
+
+    for (const c of state.columns) {
+      if (collapsedTables.has(c.tableId)) {
+        if (!addedCollapsed.has(c.tableId)) {
+          selectItems.push(`  ${c.tableId}.*`);
+          addedCollapsed.add(c.tableId);
+        }
+      } else {
+        let colStr = `${c.tableId}.${c.columnName}`;
+        if (c.func) colStr = `${c.func}(${colStr})`;
+        if (c.alias) colStr += ` AS "${c.alias}"`;
+        selectItems.push(`  ${colStr}`);
+      }
+    }
+    
+    sql += selectItems.join(',\n') + '\n';
   }
 
   const baseTable = state.tables[0];
